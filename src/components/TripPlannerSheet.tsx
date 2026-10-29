@@ -3,30 +3,21 @@
 import { useState, useMemo, useEffect } from "react";
 import {
   X,
-  Search,
   Navigation,
   ArrowUpDown,
-  Clock,
   Footprints,
   Bus,
-  TramFront as Tram,
-  TrainTrack,
-  ArrowRight,
-  ChevronDown,
-  ChevronUp,
-  Share2,
+  Bike,
+  Car,
   MapPin,
-  Check,
-  Sparkles,
   ExternalLink,
+  Sparkles,
+  Search,
 } from "lucide-react";
 import {
   TripPoint,
-  TripItinerary,
-  TripLeg,
   StopItem,
-  TransitNetworkData,
-  planTrip,
+  TravelMode,
   getGoogleMapsTransitUrl,
 } from "../lib/tripPlanner";
 
@@ -35,22 +26,26 @@ interface TripPlannerSheetProps {
   onClose: () => void;
   userCoords: [number, number] | null;
   allStops: StopItem[];
-  transitNetwork: TransitNetworkData | null;
-  lineShapes: Record<string, { dir: string; headsign: string; pts: [number, number][] }[]>;
-  liveVehicles?: { id: string; line: string; lat: number; lon: number }[];
-  onSelectItinerary: (itinerary: TripItinerary) => void;
-  onShareTrip: (itinerary: TripItinerary) => void;
+  transitNetwork?: any;
+  lineShapes?: any;
+  liveVehicles?: any;
+  onSelectItinerary?: (itinerary: any) => void;
+  onShareTrip?: (itinerary: any) => void;
 }
 
 const POPULAR_DESTINATIONS = [
-  { name: "Stazione Porta Nuova", lat: 45.0622, lon: 7.6791 },
-  { name: "Stazione Porta Susa", lat: 45.0707, lon: 7.6672 },
-  { name: "Piazza Castello", lat: 45.0711, lon: 7.6853 },
-  { name: "Politecnico di Torino", lat: 45.0633, lon: 7.6617 },
-  { name: "Ospedale Molinette", lat: 45.0422, lon: 7.6717 },
-  { name: "Lingotto Fiere & 8 Gallery", lat: 45.0303, lon: 7.6661 },
-  { name: "Metro Fermi (Capolinea)", lat: 45.0743, lon: 7.5758 },
-  { name: "Metro Bengasi (Capolinea)", lat: 45.0169, lon: 7.6631 },
+  { name: "Stazione Porta Nuova", desc: "FS & Metro M1", icon: "🚄", lat: 45.0622, lon: 7.6791 },
+  { name: "Stazione Porta Susa", desc: "Alta Velocità & Metro", icon: "🚄", lat: 45.0707, lon: 7.6672 },
+  { name: "Piazza Castello", desc: "Centro Storico", icon: "🏛️", lat: 45.0711, lon: 7.6853 },
+  { name: "Politecnico di Torino", desc: "C.so Duca degli Abruzzi", icon: "🎓", lat: 45.0633, lon: 7.6617 },
+  { name: "Ospedale Molinette", desc: "Polo Sanitario & Metro", icon: "🏥", lat: 45.0422, lon: 7.6717 },
+  { name: "Lingotto Fiere & 8 Gallery", desc: "Via Nizza & Metro", icon: "🏬", lat: 45.0303, lon: 7.6661 },
+  { name: "Allianz Stadium", desc: "Juventus Stadium", icon: "⚽", lat: 45.1095, lon: 7.6412 },
+  { name: "Reggia di Venaria", desc: "Residenza Sabauda", icon: "👑", lat: 45.1362, lon: 7.6239 },
+  { name: "Parco del Valentino", desc: "Borgo Medievale", icon: "🌳", lat: 45.0531, lon: 7.6844 },
+  { name: "Basilica di Superga", desc: "Tranvia a cremagliera", icon: "🚠", lat: 45.0808, lon: 7.7675 },
+  { name: "Metro Fermi", desc: "Capolinea Ovest Collegno", icon: "🚇", lat: 45.0743, lon: 7.5758 },
+  { name: "Metro Bengasi", desc: "Capolinea Sud Moncalieri", icon: "🚇", lat: 45.0169, lon: 7.6631 },
 ];
 
 export default function TripPlannerSheet({
@@ -58,11 +53,6 @@ export default function TripPlannerSheet({
   onClose,
   userCoords,
   allStops,
-  transitNetwork,
-  lineShapes,
-  liveVehicles,
-  onSelectItinerary,
-  onShareTrip,
 }: TripPlannerSheetProps) {
   const [originQuery, setOriginQuery] = useState("");
   const [originPoint, setOriginPoint] = useState<TripPoint | null>(null);
@@ -70,8 +60,7 @@ export default function TripPlannerSheet({
   const [destQuery, setDestQuery] = useState("");
   const [destPoint, setDestPoint] = useState<TripPoint | null>(null);
 
-  const [activeStepItineraryId, setActiveStepItineraryId] = useState<string | null>(null);
-  const [expandedStopsLegIdx, setExpandedStopsLegIdx] = useState<number | null>(null);
+  const [travelMode, setTravelMode] = useState<TravelMode>("transit");
 
   // Auto-initialize origin as current GPS location when opening
   useEffect(() => {
@@ -85,14 +74,14 @@ export default function TripPlannerSheet({
     }
   }, [isOpen, userCoords, originPoint, originQuery]);
 
-  // Universal Google Maps Transit URL
+  // Compute Universal Google Maps URL
   const googleMapsUrl = useMemo(() => {
     const orig = originPoint || (userCoords ? { lat: userCoords[0], lon: userCoords[1], name: "La mia posizione" } : originQuery.trim() ? { name: originQuery.trim() } : null);
     const dest = destPoint || (destQuery.trim() ? { name: destQuery.trim() } : null);
-    return getGoogleMapsTransitUrl(orig, dest);
-  }, [originPoint, destPoint, originQuery, destQuery, userCoords]);
+    return getGoogleMapsTransitUrl(orig, dest, travelMode);
+  }, [originPoint, destPoint, originQuery, destQuery, userCoords, travelMode]);
 
-  // Initialize origin as current GPS location if available
+  // Initialize origin as current GPS location
   const handleUseCurrentLocation = () => {
     if (userCoords) {
       setOriginPoint({
@@ -132,11 +121,10 @@ export default function TripPlannerSheet({
     setDestQuery(tempQuery);
   };
 
-  // Plan trips when both points are defined
-  const itineraries = useMemo(() => {
-    if (!originPoint || !destPoint || !transitNetwork) return [];
-    return planTrip(originPoint, destPoint, allStops, transitNetwork, lineShapes, liveVehicles);
-  }, [originPoint, destPoint, transitNetwork, allStops, lineShapes, liveVehicles]);
+  // Launch Google Maps
+  const handleOpenGoogleMaps = () => {
+    window.open(googleMapsUrl, "_blank");
+  };
 
   if (!isOpen) return null;
 
@@ -147,15 +135,20 @@ export default function TripPlannerSheet({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-blue-50/60 via-white to-indigo-50/60">
+        <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-blue-50/80 via-white to-indigo-50/80">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-200">
               <Navigation className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-black text-sm text-gray-900">Calcola Percorso (A → B)</h3>
+              <h3 className="font-black text-sm text-gray-900 flex items-center gap-1.5">
+                <span>Calcola Percorso</span>
+                <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-1.5 py-0.2 rounded-full">
+                  Google Maps Transit
+                </span>
+              </h3>
               <p className="text-[11px] text-gray-500">
-                Itinerari multi-modale bus, tram, metro e a piedi
+                Itinerari ufficiali in tempo reale con bus, tram, metro e a piedi
               </p>
             </div>
           </div>
@@ -168,7 +161,7 @@ export default function TripPlannerSheet({
         </div>
 
         {/* Inputs Card (Google Maps Style) */}
-        <div className="p-4 bg-gray-50/60 border-b border-gray-100">
+        <div className="p-4 bg-gray-50/70 border-b border-gray-100 space-y-3">
           <div className="flex items-center gap-2 relative">
             {/* Dots connector line */}
             <div className="flex flex-col items-center py-2.5 shrink-0 self-stretch justify-between">
@@ -220,7 +213,7 @@ export default function TripPlannerSheet({
                         setDestPoint({ lat: s.lat, lon: s.lon, name: `${s.n} (#${s.c})` });
                         setDestQuery(`${s.n} (#${s.c})`);
                       } else if (destQuery.trim()) {
-                        window.open(googleMapsUrl, "_blank");
+                        handleOpenGoogleMaps();
                       }
                     }
                   }}
@@ -252,11 +245,11 @@ export default function TripPlannerSheet({
           </div>
 
           {/* Quick GPS button if origin not set */}
-          {!originPoint && userCoords && (
-            <div className="mt-2.5">
+          {(!originPoint || originPoint.name !== "📍 La mia posizione attuale") && userCoords && (
+            <div className="pt-0.5">
               <button
                 onClick={handleUseCurrentLocation}
-                className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1.5 px-2 py-1 rounded-lg bg-blue-50/80 active:scale-95 transition-all"
+                className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50/80 active:scale-95 transition-all"
               >
                 <Navigation className="w-3.5 h-3.5" />
                 <span>Usa la mia posizione attuale GPS</span>
@@ -264,9 +257,61 @@ export default function TripPlannerSheet({
             </div>
           )}
 
+          {/* Mode Selector Row */}
+          <div className="flex items-center gap-1.5 pt-1">
+            <button
+              onClick={() => setTravelMode("transit")}
+              className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+                travelMode === "transit"
+                  ? "bg-blue-600 text-white shadow-xs"
+                  : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
+              }`}
+            >
+              <Bus className="w-3.5 h-3.5" />
+              <span>Transito GTT</span>
+            </button>
+
+            <button
+              onClick={() => setTravelMode("walking")}
+              className={`py-1.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+                travelMode === "walking"
+                  ? "bg-blue-600 text-white shadow-xs"
+                  : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
+              }`}
+              title="A piedi"
+            >
+              <Footprints className="w-3.5 h-3.5" />
+              <span>A piedi</span>
+            </button>
+
+            <button
+              onClick={() => setTravelMode("bicycling")}
+              className={`py-1.5 px-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+                travelMode === "bicycling"
+                  ? "bg-blue-600 text-white shadow-xs"
+                  : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
+              }`}
+              title="Bici"
+            >
+              <Bike className="w-3.5 h-3.5" />
+            </button>
+
+            <button
+              onClick={() => setTravelMode("driving")}
+              className={`py-1.5 px-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+                travelMode === "driving"
+                  ? "bg-blue-600 text-white shadow-xs"
+                  : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
+              }`}
+              title="Auto"
+            >
+              <Car className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
           {/* Autocomplete dropdown for Origin */}
           {originSuggestions.length > 0 && (
-            <div className="mt-2 bg-white rounded-xl shadow-lg border border-gray-100 divide-y divide-gray-100 overflow-hidden text-xs">
+            <div className="bg-white rounded-xl shadow-lg border border-gray-100 divide-y divide-gray-100 overflow-hidden text-xs">
               {originSuggestions.map((s) => (
                 <button
                   key={`o-${s.c}`}
@@ -285,7 +330,7 @@ export default function TripPlannerSheet({
 
           {/* Autocomplete dropdown for Destination */}
           {destSuggestions.length > 0 && (
-            <div className="mt-2 bg-white rounded-xl shadow-lg border border-gray-100 divide-y divide-gray-100 overflow-hidden text-xs">
+            <div className="bg-white rounded-xl shadow-lg border border-gray-100 divide-y divide-gray-100 overflow-hidden text-xs">
               {destSuggestions.map((s) => (
                 <button
                   key={`d-${s.c}`}
@@ -299,11 +344,8 @@ export default function TripPlannerSheet({
                   <span className="text-[10px] text-gray-400">Palina #{s.c}</span>
                 </button>
               ))}
-
-              <a
-                href={googleMapsUrl}
-                target="_blank"
-                rel="noopener noreferrer"
+              <button
+                onClick={handleOpenGoogleMaps}
                 className="w-full p-2.5 text-left bg-blue-50/70 hover:bg-blue-100/70 text-blue-700 font-bold flex items-center justify-between transition-colors"
               >
                 <div className="flex items-center gap-1.5">
@@ -313,69 +355,51 @@ export default function TripPlannerSheet({
                 <span className="text-[10px] bg-blue-200 text-blue-800 px-1.5 py-0.2 rounded font-black">
                   Apri ↗
                 </span>
-              </a>
-            </div>
-          )}
-
-          {/* If user typed text but no direct stop match, offer instant Google Maps button */}
-          {destQuery.trim().length >= 2 && destSuggestions.length === 0 && !destPoint && (
-            <div className="mt-2 bg-white rounded-xl shadow-lg border border-gray-100 p-2 text-xs">
-              <a
-                href={googleMapsUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full p-2 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold flex items-center justify-between transition-colors"
-              >
-                <div className="flex items-center gap-1.5">
-                  <ExternalLink className="w-3.5 h-3.5 text-blue-600" />
-                  <span>Cerca &quot;{destQuery}&quot; con Google Maps (Transito)</span>
-                </div>
-                <span className="text-[10px] bg-blue-200 text-blue-800 px-1.5 py-0.2 rounded font-black">
-                  Apri ↗
-                </span>
-              </a>
+              </button>
             </div>
           )}
         </div>
 
         {/* Content body */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
-          {/* Universal Google Maps Transit Shortcut */}
-          {(destPoint || destQuery.trim()) && (
-            <a
-              href={googleMapsUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full p-3 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xs flex items-center justify-between shadow-md shadow-blue-200 active:scale-95 transition-all group pointer-events-auto"
-            >
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
-                  <Navigation className="w-4 h-4 text-white" />
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {/* Primary High-Impact Google Maps Action Button */}
+          <a
+            href={googleMapsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full p-3.5 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:to-indigo-800 text-white font-bold text-xs flex items-center justify-between shadow-lg shadow-blue-200 active:scale-95 transition-all group pointer-events-auto"
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                <Navigation className="w-5 h-5 text-white" />
+              </div>
+              <div className="text-left min-w-0">
+                <div className="font-black text-sm flex items-center gap-1.5 truncate">
+                  <span>Apri Percorso su Google Maps</span>
+                  <span className="text-[10px] bg-white/25 px-1.5 py-0.2 rounded-full font-bold shrink-0">
+                    Nativo ↗
+                  </span>
                 </div>
-                <div className="text-left min-w-0">
-                  <div className="font-black text-xs flex items-center gap-1.5 truncate">
-                    <span>Calcola con Google Maps (Transito)</span>
-                    <span className="text-[10px] bg-white/25 px-1.5 py-0.2 rounded-full font-bold shrink-0">
-                      Consigliato
-                    </span>
-                  </div>
-                  <div className="text-[11px] text-blue-100 font-normal truncate">
-                    Tutte le linee GTT, cambi e navigazione satellitare turn-by-turn
-                  </div>
+                <div className="text-[11px] text-blue-100 font-normal truncate mt-0.5">
+                  Tutte le linee GTT, cambi, ritardi in tempo reale e navigazione vocale
                 </div>
               </div>
-              <ExternalLink className="w-4 h-4 text-blue-200 group-hover:translate-x-0.5 transition-transform shrink-0 ml-2" />
-            </a>
-          )}
+            </div>
+            <ExternalLink className="w-4 h-4 text-blue-200 group-hover:translate-x-0.5 transition-transform shrink-0 ml-2" />
+          </a>
 
-          {/* If no destination chosen yet, show popular destinations */}
-          {!destPoint && (
-            <div className="space-y-2">
-              <div className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-                Mete Frequenti a Torino
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                {POPULAR_DESTINATIONS.map((dest) => (
+          {/* Quick Selection: Mete Frequenti e Punti di Interesse di Torino */}
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between text-xs font-bold text-gray-500 uppercase tracking-wider">
+              <span>Mete Frequenti a Torino</span>
+              <span className="text-[10px] text-gray-400 font-normal">Tocca per impostare</span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              {POPULAR_DESTINATIONS.map((dest) => {
+                const isSelected = destPoint?.name === dest.name || destQuery === dest.name;
+
+                return (
                   <button
                     key={dest.name}
                     onClick={() => {
@@ -385,288 +409,39 @@ export default function TripPlannerSheet({
                         handleUseCurrentLocation();
                       }
                     }}
-                    className="p-2.5 rounded-xl border border-gray-200 hover:border-blue-300 hover:bg-blue-50/50 text-left transition-all group"
+                    className={`p-2.5 rounded-2xl border text-left transition-all group flex items-start gap-2.5 ${
+                      isSelected
+                        ? "border-blue-500 bg-blue-50/70 ring-2 ring-blue-100"
+                        : "border-gray-200 bg-white hover:border-blue-200 hover:bg-gray-50/80 shadow-2xs"
+                    }`}
                   >
-                    <div className="text-xs font-bold text-gray-800 group-hover:text-blue-700 truncate">
-                      {dest.name}
-                    </div>
-                    <div className="text-[10px] text-gray-400 flex items-center gap-1 mt-0.5">
-                      <MapPin className="w-3 h-3 text-gray-400" />
-                      <span>Seleziona come arrivo</span>
+                    <span className="text-base shrink-0 mt-0.5">{dest.icon}</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-xs font-bold text-gray-800 group-hover:text-blue-700 truncate">
+                        {dest.name}
+                      </div>
+                      <div className="text-[10px] text-gray-400 truncate mt-0.5">
+                        {dest.desc}
+                      </div>
                     </div>
                   </button>
-                ))}
-              </div>
+                );
+              })}
             </div>
-          )}
+          </div>
 
-          {/* Results: Itineraries list or fallback */}
-          {originPoint && destPoint && itineraries.length === 0 && (
-            <div className="text-center py-8 px-4 bg-gray-50 rounded-2xl border border-gray-200 space-y-3">
-              <div className="w-10 h-10 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center mx-auto">
-                <MapPin className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="font-bold text-gray-800 text-xs">
-                  Nessun itinerario diretto trovato nell&apos;archivio locale
-                </div>
-                <div className="text-[11px] text-gray-500 mt-1">
-                  Usa Google Maps per calcolare il tragitto con tutte le combinazioni di bus, tram, metro e a piedi a Torino.
-                </div>
-              </div>
-              <a
-                href={googleMapsUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md active:scale-95 transition-all"
-              >
-                <span>Apri su Google Maps</span>
-                <ExternalLink className="w-3.5 h-3.5" />
-              </a>
+          {/* Pro-Tip Explaining the Combined Power of Maps + Live Radar */}
+          <div className="p-3.5 bg-gradient-to-r from-slate-900 to-blue-950 text-white rounded-2xl shadow-sm text-xs space-y-1.5">
+            <div className="flex items-center gap-1.5 font-bold text-blue-200">
+              <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+              <span>Come usare al meglio GTT Live + Google Maps</span>
             </div>
-          )}
-
-          {itineraries.map((itinerary) => {
-            const isSelected = activeStepItineraryId === itinerary.id;
-
-            return (
-              <div
-                key={itinerary.id}
-                className={`rounded-2xl border transition-all overflow-hidden ${
-                  isSelected
-                    ? "border-blue-500 bg-blue-50/30 shadow-md ring-2 ring-blue-100"
-                    : "border-gray-200 bg-white hover:border-gray-300 shadow-xs"
-                }`}
-              >
-                {/* Itinerary Summary Header */}
-                <div
-                  onClick={() =>
-                    setActiveStepItineraryId(isSelected ? null : itinerary.id)
-                  }
-                  className="p-3.5 cursor-pointer flex items-start justify-between gap-2"
-                >
-                  <div className="space-y-2 flex-1 min-w-0">
-                    {/* Badges row: Legs */}
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      {itinerary.legs.map((leg, lIdx) => {
-                        if (leg.type === "WALK") {
-                          return (
-                            <div
-                              key={lIdx}
-                              className="flex items-center gap-1 bg-gray-100 text-gray-700 px-2 py-0.5 rounded-md text-[11px] font-bold"
-                            >
-                              <Footprints className="w-3 h-3 text-gray-500" />
-                              <span>{leg.durationMinutes}m</span>
-                            </div>
-                          );
-                        }
-
-                        const isM1 = leg.mode === "METRO";
-                        const isTr = leg.mode === "TRAM";
-
-                        return (
-                          <div key={lIdx} className="flex items-center gap-1">
-                            {lIdx > 0 && <ArrowRight className="w-3 h-3 text-gray-300" />}
-                            <div
-                              className={`flex items-center gap-1 text-white px-2 py-0.5 rounded-md text-[11px] font-black ${
-                                isM1 ? "bg-rose-600" : isTr ? "bg-red-600" : "bg-blue-600"
-                              }`}
-                            >
-                              {isM1 ? (
-                                <TrainTrack className="w-3 h-3" />
-                              ) : isTr ? (
-                                <Tram className="w-3 h-3" />
-                              ) : (
-                                <Bus className="w-3 h-3" />
-                              )}
-                              <span>{isM1 ? "M1" : leg.line}</span>
-                              <span className="text-[10px] font-normal opacity-90">
-                                • {leg.durationMinutes}m
-                              </span>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    {/* Timing & Headsign */}
-                    <div className="flex items-center gap-2 text-xs">
-                      <span className="font-black text-gray-900 text-sm">
-                        {itinerary.totalMinutes} min
-                      </span>
-                      <span className="text-gray-400">•</span>
-                      <span className="text-gray-600 font-medium">
-                        Arrivo {itinerary.arrivalTime}
-                      </span>
-                      {itinerary.isFastest && (
-                        <span className="px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[10px]">
-                          Più veloce
-                        </span>
-                      )}
-                      {itinerary.isLeastWalk && (
-                        <span className="px-1.5 py-0.2 rounded-full bg-blue-100 text-blue-800 font-bold text-[10px]">
-                          Meno a piedi
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Real-Time Live Vehicle notice */}
-                    {itinerary.legs.some((l) => l.liveVehicle) && (
-                      <div className="text-[11px] text-emerald-700 font-bold flex items-center gap-1">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                        <span>
-                          Mezzo in arrivo tra{" "}
-                          {itinerary.legs.find((l) => l.liveVehicle)?.liveVehicle?.etaMinutes} min!
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="text-gray-400 p-1">
-                    {isSelected ? (
-                      <ChevronUp className="w-4 h-4" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4" />
-                    )}
-                  </div>
-                </div>
-
-                {/* Expanded Detailed Turn-by-Turn Steps */}
-                {isSelected && (
-                  <div className="p-3.5 border-t border-gray-100 bg-white space-y-3 animate-in fade-in duration-200">
-                    <div className="text-xs font-bold text-gray-500 uppercase tracking-wider">
-                      Dettagli Itinerario Passo-Passo
-                    </div>
-
-                    <div className="space-y-3">
-                      {itinerary.legs.map((leg, idx) => (
-                        <div key={idx} className="flex items-start gap-2.5 text-xs">
-                          {leg.type === "WALK" ? (
-                            <div className="w-7 h-7 rounded-xl bg-gray-100 text-gray-600 flex items-center justify-center shrink-0 mt-0.5">
-                              <Footprints className="w-3.5 h-3.5" />
-                            </div>
-                          ) : (
-                            <div
-                              className={`w-7 h-7 rounded-xl text-white flex items-center justify-center shrink-0 mt-0.5 font-black text-xs ${
-                                leg.mode === "METRO"
-                                  ? "bg-rose-600"
-                                  : leg.mode === "TRAM"
-                                  ? "bg-red-600"
-                                  : "bg-blue-600"
-                              }`}
-                            >
-                              {leg.mode === "METRO" ? "M1" : leg.line}
-                            </div>
-                          )}
-
-                          <div className="flex-1 min-w-0">
-                            {leg.type === "WALK" ? (
-                              <div>
-                                <div className="font-bold text-gray-800">
-                                  Cammina fino a {leg.toName}
-                                </div>
-                                <div className="text-[11px] text-gray-400">
-                                  {leg.distanceMeters}m • circa {leg.durationMinutes} min
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="space-y-1">
-                                <div className="font-bold text-gray-900">
-                                  {leg.mode === "METRO" ? "Metro M1" : `Linea ${leg.line}`}
-                                  {leg.headsign && (
-                                    <span className="font-normal text-gray-600 ml-1">
-                                      dir. {leg.headsign}
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="text-[11px] text-gray-500">
-                                  Sali a <span className="font-bold">{leg.fromName}</span> (#{leg.fromCode})
-                                </div>
-
-                                {leg.stopsCount && (
-                                  <div className="pt-1">
-                                    <button
-                                      onClick={() =>
-                                        setExpandedStopsLegIdx(
-                                          expandedStopsLegIdx === idx ? null : idx
-                                        )
-                                      }
-                                      className="text-[11px] text-blue-600 font-bold hover:underline flex items-center gap-1"
-                                    >
-                                      <span>
-                                        {leg.stopsCount} fermate ({leg.durationMinutes} min)
-                                      </span>
-                                      {expandedStopsLegIdx === idx ? (
-                                        <ChevronUp className="w-3 h-3" />
-                                      ) : (
-                                        <ChevronDown className="w-3 h-3" />
-                                      )}
-                                    </button>
-
-                                    {/* Intermediate stops list */}
-                                    {expandedStopsLegIdx === idx && leg.intermediateStops && (
-                                      <div className="mt-1 pl-2 border-l-2 border-gray-200 space-y-1 py-1 text-[11px] text-gray-600">
-                                        {leg.intermediateStops.map((st, sIdx) => (
-                                          <div key={sIdx} className="truncate">
-                                            • {st.name} (#{st.code})
-                                          </div>
-                                        ))}
-                                      </div>
-                                    )}
-                                  </div>
-                                )}
-
-                                <div className="text-[11px] text-gray-500 pt-0.5">
-                                  Scendi a <span className="font-bold">{leg.toName}</span> (#{leg.toCode})
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Actions bar */}
-                    <div className="pt-3 border-t border-gray-100 flex items-center gap-2">
-                      <button
-                        onClick={() => {
-                          onSelectItinerary(itinerary);
-                          onClose();
-                        }}
-                        className="flex-1 py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all"
-                      >
-                        <Navigation className="w-3.5 h-3.5" />
-                        <span>Mostra su Mappa</span>
-                      </button>
-
-                      <a
-                        href={googleMapsUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="py-2.5 px-3 rounded-xl bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 font-bold text-xs flex items-center justify-center gap-1.5 transition-all shrink-0"
-                        title="Apri indicazioni su Google Maps"
-                      >
-                        <ExternalLink className="w-3.5 h-3.5" />
-                        <span>Google Maps ↗</span>
-                      </a>
-
-                      <button
-                        onClick={() => onShareTrip(itinerary)}
-                        className="py-2.5 px-3 rounded-xl bg-gray-100 hover:bg-gray-200 active:scale-95 text-gray-700 font-bold text-xs flex items-center justify-center gap-1.5 transition-all shrink-0"
-                        title="Condividi percorso"
-                      >
-                        <Share2 className="w-3.5 h-3.5" />
-                        <span>Condividi</span>
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+            <p className="text-[11px] text-gray-300 leading-relaxed">
+              Google Maps fornisce il calcolo perfetto del tragitto (linea consigliata e cambi). Una volta saputo quale bus o tram prendere, torna su questa app per seguire la posizione esatta satellitare del tuo mezzo in tempo reale sulla mappa!
+            </p>
+          </div>
         </div>
       </div>
     </div>
   );
 }
-
