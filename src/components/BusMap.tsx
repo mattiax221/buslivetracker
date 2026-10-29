@@ -197,20 +197,65 @@ function getVehicleIcon(line: string, heading: number): L.DivIcon {
   return icon;
 }
 
+/* ── Helper to find the matching route direction of a vehicle ── */
+function getVehicleDirection(v: Vehicle, shapes: RouteShape[]): string | null {
+  if (!shapes || shapes.length === 0) return null;
+  if (shapes.length === 1) return shapes[0].dir;
+
+  if (isMetro(v.line)) {
+    if (v.headsign?.includes("FERMI") || v.tripId?.includes("DIR0")) return "0";
+    if (v.headsign?.includes("BENGASI") || v.tripId?.includes("DIR1")) return "1";
+  }
+
+  if (v.headsign) {
+    const cleanH = v.headsign.toLowerCase();
+    const matched = shapes.find((s) => s.headsign && s.headsign.toLowerCase().includes(cleanH));
+    if (matched) return matched.dir;
+  }
+
+  let bestDir = shapes[0].dir;
+  let minDistance = Infinity;
+  for (const shape of shapes) {
+    for (let i = 0; i < shape.pts.length; i++) {
+      const pt = shape.pts[i];
+      const d = getDistanceMeters(v.lat, v.lon, pt[0], pt[1]);
+      if (d < minDistance) {
+        minDistance = d;
+        bestDir = shape.dir;
+      }
+    }
+  }
+  return bestDir;
+}
+
 /* ── Memoized Vehicle Marker Component ── */
 const VehicleMarkerItem = memo(function VehicleMarkerItem({
   vehicle,
+  onSelectVehicle,
+  onFitRoute,
+  isActiveRoute,
 }: {
   vehicle: Vehicle;
+  onSelectVehicle?: (v: Vehicle) => void;
+  onFitRoute?: (line: string) => void;
+  isActiveRoute?: boolean;
 }) {
   const metro = isMetro(vehicle.line);
   const tram = !metro && isTram(vehicle.line);
   const icon = getVehicleIcon(vehicle.line, vehicle.heading);
 
   return (
-    <Marker position={[vehicle.lat, vehicle.lon]} icon={icon}>
+    <Marker
+      position={[vehicle.lat, vehicle.lon]}
+      icon={icon}
+      eventHandlers={{
+        click: () => {
+          onSelectVehicle?.(vehicle);
+        },
+      }}
+    >
       <Popup>
-        <div className="text-sm min-w-[170px] p-1 font-sans">
+        <div className="text-sm min-w-[180px] p-1 font-sans">
           <div className="font-bold text-base text-gray-900 flex items-center justify-between gap-1.5">
             <div className="flex items-center gap-1.5">
               {metro ? (
@@ -248,6 +293,23 @@ const VehicleMarkerItem = memo(function VehicleMarkerItem({
               <span className="font-bold text-blue-600">{vehicle.speed} km/h</span>
             ) : (
               <span className="text-amber-600 font-bold">In fermata</span>
+            )}
+          </div>
+
+          <div className="mt-2 pt-2 border-t border-gray-100 flex items-center justify-between gap-1.5">
+            <div className="flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60">
+              <span>🛤️ Tracciato attivo</span>
+            </div>
+            {onFitRoute && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onFitRoute(vehicle.line);
+                }}
+                className="px-2 py-0.5 rounded-md bg-slate-900 text-white text-[10px] font-bold hover:bg-slate-800 active:scale-95 transition-all shadow-xs"
+              >
+                Inquadra tutto
+              </button>
             )}
           </div>
         </div>
@@ -804,6 +866,12 @@ export default function BusMap() {
   const [savedStops, setSavedStops] = useState<{ code: string; name: string }[]>([]);
   const [alarms, setAlarms] = useState<CommuteAlarm[]>([]);
   const [selectedDirection, setSelectedDirection] = useState<string | null>(null);
+  const [activeVehicleRoute, setActiveVehicleRoute] = useState<{
+    vehicleId: string;
+    line: string;
+    dir: string | null;
+    headsign?: string;
+  } | null>(null);
   const [activeAlarmToast, setActiveAlarmToast] = useState<{
     line: string;
     stopName: string;
@@ -1077,9 +1145,8 @@ export default function BusMap() {
     }
   }, [selectedLines, lineShapes]);
 
-  const handleFitCurrentRoute = useCallback(() => {
-    if (selectedLines.size === 1) {
-      const line = Array.from(selectedLines)[0];
+  const handleFitRouteForLine = useCallback(
+    (line: string) => {
       const shapes = lineShapes[line];
       if (shapes && shapes.length > 0) {
         const allPts = shapes.flatMap((s) => s.pts);
@@ -1087,8 +1154,29 @@ export default function BusMap() {
           setFitRouteTrigger(L.latLngBounds(allPts));
         }
       }
+    },
+    [lineShapes]
+  );
+
+  const handleSelectVehicle = useCallback(
+    (v: Vehicle) => {
+      const shapes = lineShapes[v.line] || [];
+      const matchedDir = getVehicleDirection(v, shapes);
+      setActiveVehicleRoute({
+        vehicleId: v.id,
+        line: v.line,
+        dir: matchedDir,
+        headsign: v.headsign,
+      });
+    },
+    [lineShapes]
+  );
+
+  const handleFitCurrentRoute = useCallback(() => {
+    if (selectedLines.size === 1) {
+      handleFitRouteForLine(Array.from(selectedLines)[0]);
     }
-  }, [selectedLines, lineShapes]);
+  }, [selectedLines, handleFitRouteForLine]);
 
   const availableDirections = useMemo(() => {
     if (selectedLines.size !== 1) return [];
@@ -1098,22 +1186,53 @@ export default function BusMap() {
   }, [selectedLines, lineShapes]);
 
   const activeShapes = useMemo(() => {
-    if (selectedLines.size === 0 || selectedLines.size > 4) return [];
-    const result: { line: string; dir: string; headsign: string; pts: [number, number][] }[] = [];
-    selectedLines.forEach((line) => {
+    const linesToRender = new Set(selectedLines);
+    if (activeVehicleRoute) {
+      linesToRender.add(activeVehicleRoute.line);
+    }
+    if (linesToRender.size === 0 || linesToRender.size > 4) return [];
+
+    const result: {
+      line: string;
+      dir: string;
+      headsign: string;
+      pts: [number, number][];
+      isVehicleRoute?: boolean;
+    }[] = [];
+
+    linesToRender.forEach((line) => {
       const shapes = lineShapes[line] || [];
+      const isFromVehicle = activeVehicleRoute?.line === line;
+
       shapes.forEach((s) => {
-        if (selectedLines.size === 1 && selectedDirection !== null) {
+        if (isFromVehicle && activeVehicleRoute?.dir !== null) {
+          if (s.dir === activeVehicleRoute.dir) {
+            result.push({
+              line,
+              dir: s.dir,
+              headsign: s.headsign,
+              pts: s.pts,
+              isVehicleRoute: true,
+            });
+          }
+        } else if (selectedLines.size === 1 && selectedDirection !== null) {
           if (s.dir === selectedDirection) {
             result.push({ line, dir: s.dir, headsign: s.headsign, pts: s.pts });
           }
         } else {
-          result.push({ line, dir: s.dir, headsign: s.headsign, pts: s.pts });
+          result.push({
+            line,
+            dir: s.dir,
+            headsign: s.headsign,
+            pts: s.pts,
+            isVehicleRoute: isFromVehicle,
+          });
         }
       });
     });
+
     return result;
-  }, [selectedLines, lineShapes, selectedDirection]);
+  }, [selectedLines, activeVehicleRoute, lineShapes, selectedDirection]);
 
   const handleSelectStop = useCallback((stop: StopInfo) => {
     setSelectedStop(stop);
@@ -1281,6 +1400,45 @@ export default function BusMap() {
         availableDirections={availableDirections}
       />
 
+      {/* Active Clicked Vehicle Route Banner */}
+      {activeVehicleRoute && !selectedLines.has(activeVehicleRoute.line) && (
+        <div className="absolute top-26 left-3 right-3 z-[998] pointer-events-none">
+          <div className="bg-slate-900/95 backdrop-blur-md text-white px-3.5 py-2 rounded-2xl shadow-2xl flex items-center justify-between gap-2.5 pointer-events-auto border border-white/10 animate-in slide-in-from-top duration-200">
+            <div className="flex items-center gap-2 min-w-0">
+              <span
+                className="w-2.5 h-2.5 rounded-full shrink-0"
+                style={{ backgroundColor: lineColor(activeVehicleRoute.line) }}
+              />
+              <div className="min-w-0 text-xs">
+                <span className="font-black">
+                  Percorso {isMetro(activeVehicleRoute.line) ? "Metro M1" : `Linea ${activeVehicleRoute.line}`}
+                </span>
+                {activeVehicleRoute.headsign && (
+                  <span className="text-gray-300 font-normal ml-1.5 truncate">
+                    → {activeVehicleRoute.headsign}
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                onClick={() => handleFitRouteForLine(activeVehicleRoute.line)}
+                className="px-2.5 py-1 rounded-xl bg-white/15 hover:bg-white/25 active:scale-95 text-white text-[11px] font-bold transition-all"
+              >
+                Inquadra
+              </button>
+              <button
+                onClick={() => setActiveVehicleRoute(null)}
+                className="p-1 rounded-full hover:bg-white/20 active:scale-95 text-gray-400 hover:text-white transition-all"
+                title="Nascondi tracciato"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Map */}
       <MapContainer
         center={TORINO_CENTER}
@@ -1333,15 +1491,16 @@ export default function BusMap() {
         {/* Route Polylines (Tracciati) */}
         {activeShapes.map((shape, idx) => {
           const color = lineColor(shape.line);
+          const isHighlight = shape.isVehicleRoute;
           return (
             <Fragment key={`shape-${shape.line}-${shape.dir}-${idx}`}>
-              {/* Outer white casing for high contrast on street maps */}
+              {/* Outer white/dark casing for high contrast on street maps */}
               <Polyline
                 positions={shape.pts}
                 pathOptions={{
-                  color: "#ffffff",
-                  weight: 6,
-                  opacity: 0.85,
+                  color: isHighlight ? "#0f172a" : "#ffffff",
+                  weight: isHighlight ? 8 : 6,
+                  opacity: isHighlight ? 0.95 : 0.85,
                   lineCap: "round",
                   lineJoin: "round",
                 }}
@@ -1351,16 +1510,23 @@ export default function BusMap() {
                 positions={shape.pts}
                 pathOptions={{
                   color,
-                  weight: 3.5,
-                  opacity: 0.95,
-                  dashArray: shape.dir === "1" ? "8, 6" : undefined,
+                  weight: isHighlight ? 5 : 3.5,
+                  opacity: 1,
+                  dashArray: !isHighlight && shape.dir === "1" ? "8, 6" : undefined,
                   lineCap: "round",
                   lineJoin: "round",
                 }}
               >
                 <Tooltip sticky>
                   <div className="text-xs font-sans">
-                    <span className="font-bold">Linea {shape.line}</span>
+                    <span className="font-bold">
+                      {isMetro(shape.line) ? "Metro M1" : `Linea ${shape.line}`}
+                    </span>
+                    {isHighlight && (
+                      <span className="ml-1.5 bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.2 rounded text-[10px]">
+                        Mezzo Selezionato
+                      </span>
+                    )}
                     {shape.headsign && (
                       <div className="text-gray-600 font-medium">→ {shape.headsign}</div>
                     )}
@@ -1374,9 +1540,15 @@ export default function BusMap() {
           );
         })}
 
-        {/* Real-time bus & tram markers (memoized & viewport-culled for 60fps) */}
+        {/* Real-time bus, tram & metro markers */}
         {visibleVehicles.map((v) => (
-          <VehicleMarkerItem key={v.id} vehicle={v} />
+          <VehicleMarkerItem
+            key={v.id}
+            vehicle={v}
+            onSelectVehicle={handleSelectVehicle}
+            onFitRoute={handleFitRouteForLine}
+            isActiveRoute={activeVehicleRoute?.vehicleId === v.id}
+          />
         ))}
 
         {/* Dynamic Stops Layer */}
