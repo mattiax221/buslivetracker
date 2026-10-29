@@ -318,7 +318,7 @@ const VehicleMarkerItem = memo(function VehicleMarkerItem({
   );
 });
 
-/* ── Isolated Live Sync Pill (prevents map re-renders on 1s tick) ── */
+/* ── Isolated Live Sync Pill (strictly fixed width, zero layout shift) ── */
 const LiveSyncPill = memo(function LiveSyncPill({
   isRefreshing,
   onRefresh,
@@ -342,16 +342,16 @@ const LiveSyncPill = memo(function LiveSyncPill({
         onRefresh();
       }}
       disabled={isRefreshing}
-      className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-900 text-white text-[11px] font-bold active:scale-95 transition-transform shadow-xs"
-      title="Tocca per forzare l'aggiornamento GPS immediato"
+      className="w-[58px] h-8 flex items-center justify-center gap-1 rounded-full bg-slate-900 text-white text-[11px] font-bold active:scale-95 transition-transform shadow-xs shrink-0 select-none"
+      title="Aggiornamento GPS (tocca per forzare)"
     >
       <RefreshCw
-        className={`w-3 h-3 ${isRefreshing ? "animate-spin text-emerald-400" : "text-slate-400"}`}
+        className={`w-3 h-3 shrink-0 ${isRefreshing ? "animate-spin text-emerald-400" : "text-slate-400"}`}
       />
-      <span className="font-mono">
-        {isRefreshing ? "GPS..." : `${countdown}s`}
+      <span className="font-mono tabular-nums text-center w-4 text-[10px]">
+        {isRefreshing ? "••" : `${countdown}s`}
       </span>
-      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
     </button>
   );
 });
@@ -1102,13 +1102,18 @@ export default function BusMap() {
 
   // High-performance viewport culling: renders only vehicles in view (+ 25% edge margin)
   const visibleVehicles = useMemo(() => {
+    // If user clicked on a specific vehicle, show ONLY that single vehicle!
+    if (activeVehicleRoute) {
+      const match = vehicles.find((v) => v.id === activeVehicleRoute.vehicleId);
+      return match ? [match] : [];
+    }
     if (selectedLines.size > 0) {
       return filteredVehicles;
     }
     if (!mapBounds) return vehicles.slice(0, 80);
     const padded = mapBounds.pad(0.25);
     return vehicles.filter((v) => padded.contains([v.lat, v.lon]));
-  }, [vehicles, selectedLines, mapBounds, filteredVehicles]);
+  }, [vehicles, activeVehicleRoute, selectedLines, mapBounds, filteredVehicles]);
 
   const handleToggleLine = useCallback((line: string) => {
     setSelectedDirection(null);
@@ -1297,7 +1302,7 @@ export default function BusMap() {
   return (
     <div className="relative w-full h-full overflow-hidden">
       {/* Top Status Bar */}
-      <div className="absolute top-0 left-0 right-0 z-[1000] bg-white border-b border-gray-100 px-4 py-2.5 flex items-center justify-between text-sm pt-safe shadow-xs">
+      <div className="absolute top-0 left-0 right-0 z-[1000] bg-white border-b border-gray-100 px-3 py-2 flex items-center justify-between text-sm pt-safe shadow-xs">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center shadow-xs">
             <Bus className="w-4 h-4" />
@@ -1305,24 +1310,14 @@ export default function BusMap() {
           <span className="font-black text-gray-900 tracking-tight text-base">GTT Live</span>
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* AI Copilot Button */}
-          <button
-            onClick={() => setIsAIOpen(true)}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-bold active:scale-95 transition-all shadow-xs"
-            title="Assistente AI Torino"
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Assistente</span>
-          </button>
-
-          {/* Favorites & Commute Alarms button */}
+        <div className="flex items-center gap-1.5">
+          {/* Favorites & Commute Alarms */}
           <button
             onClick={() => setIsFavoritesOpen(true)}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 hover:bg-amber-100 border border-amber-200/80 text-amber-900 text-xs font-bold active:scale-95 transition-all shadow-2xs"
-            title="Linee e fermate preferite, sveglie pendolare"
+            className="h-8 px-2.5 rounded-full bg-amber-50 hover:bg-amber-100 border border-amber-200/80 text-amber-900 text-xs font-bold active:scale-95 transition-all flex items-center gap-1 shrink-0"
+            title="Linee e fermate preferite"
           >
-            <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+            <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500 shrink-0" />
             <span className="text-[11px] hidden sm:inline">Preferiti</span>
             {savedLines.length + savedStops.length + alarms.filter((a) => a.enabled).length > 0 && (
               <span className="bg-amber-500 text-white text-[10px] px-1.5 py-0.2 rounded-full font-black">
@@ -1331,22 +1326,30 @@ export default function BusMap() {
             )}
           </button>
 
-          {/* Alerts button */}
+          {/* Service Alerts */}
           <button
             onClick={() => setIsAlertsOpen(true)}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 hover:bg-amber-100 border border-amber-200/80 text-amber-900 text-xs font-bold active:scale-95 transition-all shadow-2xs"
-            title="Deviazioni, scioperi e avvisi"
+            className="w-8 h-8 rounded-full bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-700 active:scale-95 transition-all flex items-center justify-center shrink-0 relative"
+            title="Avvisi e deviazioni GTT"
           >
             <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
-            <span className="text-[11px] hidden sm:inline">Avvisi</span>
             {alertsCount > 0 && (
-              <span className="bg-amber-500 text-white text-[10px] px-1.5 py-0.2 rounded-full font-black">
+              <span className="absolute -top-1 -right-1 bg-amber-500 text-white text-[9px] px-1 rounded-full font-black border border-white">
                 {alertsCount}
               </span>
             )}
           </button>
 
-          {/* Isolated Live Sync Countdown Pill */}
+          {/* AI Copilot */}
+          <button
+            onClick={() => setIsAIOpen(true)}
+            className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white active:scale-95 transition-all shadow-xs flex items-center justify-center shrink-0"
+            title="Assistente AI Torino"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+          </button>
+
+          {/* Strictly Fixed-Width Live Sync Pill (no layout shift) */}
           <LiveSyncPill isRefreshing={isRefreshing} onRefresh={fetchVehicles} />
         </div>
       </div>
@@ -1401,7 +1404,7 @@ export default function BusMap() {
       />
 
       {/* Active Clicked Vehicle Route Banner */}
-      {activeVehicleRoute && !selectedLines.has(activeVehicleRoute.line) && (
+      {activeVehicleRoute && (
         <div className="absolute top-26 left-3 right-3 z-[998] pointer-events-none">
           <div className="bg-slate-900/95 backdrop-blur-md text-white px-3.5 py-2 rounded-2xl shadow-2xl flex items-center justify-between gap-2.5 pointer-events-auto border border-white/10 animate-in slide-in-from-top duration-200">
             <div className="flex items-center gap-2 min-w-0">
@@ -1411,7 +1414,7 @@ export default function BusMap() {
               />
               <div className="min-w-0 text-xs">
                 <span className="font-black">
-                  Percorso {isMetro(activeVehicleRoute.line) ? "Metro M1" : `Linea ${activeVehicleRoute.line}`}
+                  {isMetro(activeVehicleRoute.line) ? "Metro M1" : `Linea ${activeVehicleRoute.line}`}
                 </span>
                 {activeVehicleRoute.headsign && (
                   <span className="text-gray-300 font-normal ml-1.5 truncate">
@@ -1429,9 +1432,10 @@ export default function BusMap() {
               </button>
               <button
                 onClick={() => setActiveVehicleRoute(null)}
-                className="p-1 rounded-full hover:bg-white/20 active:scale-95 text-gray-400 hover:text-white transition-all"
-                title="Nascondi tracciato"
+                className="px-2.5 py-1 rounded-xl bg-red-600/90 hover:bg-red-600 active:scale-95 text-white text-[11px] font-bold transition-all flex items-center gap-1"
+                title="Torna a vedere tutti i mezzi"
               >
+                <span>Mostra tutti</span>
                 <X className="w-3.5 h-3.5" />
               </button>
             </div>
