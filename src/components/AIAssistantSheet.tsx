@@ -96,7 +96,7 @@ export default function AIAssistantSheet({
     <div className="fixed inset-0 z-[1200] flex flex-col justify-end">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
+        className="fixed inset-0 bg-black/40 transition-opacity"
         onClick={onClose}
         aria-hidden="true"
       />

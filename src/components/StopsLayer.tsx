@@ -17,62 +17,66 @@ interface StopsLayerProps {
   onSelectStop: (stop: { code: string; name: string; desc: string; lat: number; lon: number }) => void;
 }
 
-// Crisp, professional transit stop icon
-function createStopIcon(code: string, zoom: number): L.DivIcon {
-  const isHighZoom = zoom >= 17;
+// Crisp, lightweight transit stop icon with memory caching
+const stopIconCache = new Map<string, L.DivIcon>();
 
-  return L.divIcon({
-    className: "stop-marker-custom",
-    html: `
-      <div style="
-        position: relative;
-        transform: translate(-50%, -50%);
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        cursor: pointer;
-      ">
-        ${
-          isHighZoom
-            ? `<div style="
-                background: #0f172a;
-                color: #ffffff;
-                font-size: 9px;
-                font-weight: 800;
-                padding: 1px 4px;
-                border-radius: 4px;
-                margin-bottom: 2px;
-                white-space: nowrap;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.25);
-                border: 1px solid rgba(255,255,255,0.4);
-                line-height: 1.2;
-              ">#${code}</div>`
-            : ""
-        }
+function getStopIcon(code: string, isHighZoom: boolean): L.DivIcon {
+  const key = `${code}_${isHighZoom ? "h" : "l"}`;
+  let icon = stopIconCache.get(key);
+  if (!icon) {
+    icon = L.divIcon({
+      className: "stop-marker-custom",
+      html: `
         <div style="
-          width: ${isHighZoom ? "18px" : "14px"};
-          height: ${isHighZoom ? "18px" : "14px"};
-          border-radius: 50%;
-          background: #1e3a8a;
-          border: 2px solid #ffffff;
-          box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+          position: relative;
+          transform: translate(-50%, -50%);
           display: flex;
+          flex-direction: column;
           align-items: center;
-          justify-content: center;
-          transition: transform 0.15s ease;
+          cursor: pointer;
         ">
-          <svg width="${isHighZoom ? "9" : "7"}" height="${isHighZoom ? "9" : "7"}" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="3">
-            <rect x="3" y="3" width="18" height="18" rx="3" />
-            <circle cx="8" cy="15" r="1.5" fill="#ffffff" />
-            <circle cx="16" cy="15" r="1.5" fill="#ffffff" />
-            <line x1="3" y1="11" x2="21" y2="11" />
-          </svg>
+          ${
+            isHighZoom
+              ? `<div style="
+                  background: #0f172a;
+                  color: #ffffff;
+                  font-size: 9px;
+                  font-weight: 800;
+                  padding: 1px 4px;
+                  border-radius: 4px;
+                  margin-bottom: 2px;
+                  white-space: nowrap;
+                  box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+                  line-height: 1.2;
+                ">#${code}</div>`
+              : ""
+          }
+          <div style="
+            width: ${isHighZoom ? "16px" : "12px"};
+            height: ${isHighZoom ? "16px" : "12px"};
+            border-radius: 50%;
+            background: #1e3a8a;
+            border: 2px solid #ffffff;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          ">
+            <svg width="${isHighZoom ? "8" : "6"}" height="${isHighZoom ? "8" : "6"}" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="3">
+              <rect x="3" y="3" width="18" height="18" rx="3" />
+              <circle cx="8" cy="15" r="1.5" fill="#ffffff" />
+              <circle cx="16" cy="15" r="1.5" fill="#ffffff" />
+              <line x1="3" y1="11" x2="21" y2="11" />
+            </svg>
+          </div>
         </div>
-      </div>
-    `,
-    iconSize: [0, 0],
-    iconAnchor: [0, 0],
-  });
+      `,
+      iconSize: [0, 0],
+      iconAnchor: [0, 0],
+    });
+    stopIconCache.set(key, icon);
+  }
+  return icon;
 }
 
 export default function StopsLayer({ allStops, onSelectStop }: StopsLayerProps) {
@@ -97,8 +101,10 @@ export default function StopsLayer({ allStops, onSelectStop }: StopsLayerProps) 
     }
   }, [map]);
 
+  const isHighZoom = zoom >= 17;
+
   const visibleStops = useMemo(() => {
-    if (zoom < 15 || !bounds || allStops.length === 0) return [];
+    if (zoom < 16 || !bounds || allStops.length === 0) return [];
 
     const south = bounds.getSouth();
     const north = bounds.getNorth();
@@ -110,13 +116,13 @@ export default function StopsLayer({ allStops, onSelectStop }: StopsLayerProps) 
       const s = allStops[i];
       if (s.lat >= south && s.lat <= north && s.lon >= west && s.lon <= east) {
         filtered.push(s);
-        if (filtered.length >= 100) break;
+        if (filtered.length >= 50) break;
       }
     }
     return filtered;
   }, [allStops, zoom, bounds]);
 
-  if (zoom < 15) return null;
+  if (zoom < 16) return null;
 
   return (
     <>
@@ -124,7 +130,7 @@ export default function StopsLayer({ allStops, onSelectStop }: StopsLayerProps) 
         <Marker
           key={`stop-${s.c}`}
           position={[s.lat, s.lon]}
-          icon={createStopIcon(s.c, zoom)}
+          icon={getStopIcon(s.c, isHighZoom)}
           eventHandlers={{
             click: (e) => {
               e.originalEvent.stopPropagation();

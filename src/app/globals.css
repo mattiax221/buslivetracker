@@ -39,12 +39,10 @@ body {
   background: #f1f5f9;
 }
 
-/* Bus marker smooth glide & animation */
+/* Bus marker styling - ultra lightweight for 60fps mobile performance */
 .bus-marker {
   background: transparent !important;
   border: none !important;
-  transition: transform 1.6s cubic-bezier(0.2, 0.9, 0.3, 1) !important;
-  will-change: transform;
 }
 
 .bus-marker-container {
@@ -52,37 +50,14 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .bus-arrow {
   position: relative;
   width: 12px;
   height: 12px;
-  transition: transform 0.8s ease-out;
-}
-
-/* Pulsing motion ripple for moving vehicles */
-@keyframes bus-pulse {
-  0% {
-    transform: scale(0.95);
-    opacity: 0.8;
-  }
-  50% {
-    transform: scale(1.4);
-    opacity: 0;
-  }
-  100% {
-    transform: scale(0.95);
-    opacity: 0;
-  }
-}
-
-.bus-moving-halo {
-  position: absolute;
-  inset: -3px;
-  border-radius: 9px;
-  animation: bus-pulse 2s infinite ease-out;
-  pointer-events: none;
 }
 
 /* Clean up Leaflet popup */

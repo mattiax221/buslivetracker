@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef, useMemo, Fragment } from "react";
+import React, { useEffect, useState, useCallback, useRef, useMemo, Fragment, memo } from "react";
 import {
   MapContainer,
   TileLayer,
@@ -131,64 +131,134 @@ function naturalSort(a: string, b: string): number {
   return a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
 }
 
-/* ── Bus marker icon with motion styling ── */
-function createVehicleIcon(line: string, heading: number, speed: number = 0): L.DivIcon {
-  const color = lineColor(line);
-  const rotation = heading || 0;
-  const isMoving = speed > 4;
+/* ── Cached vehicle icons (prevents DOM rebuilding & memory thrashing) ── */
+const vehicleIconCache = new Map<string, L.DivIcon>();
 
-  return L.divIcon({
-    className: "bus-marker",
-    html: `
-      <div class="bus-marker-container" style="transform: translate(-50%, -50%); cursor: pointer;">
-        <div class="bus-arrow" style="transform: rotate(${rotation}deg);">
-          <svg width="12" height="12" viewBox="0 0 12 12" style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);">
-            <polygon points="6,0 10,10 6,7 2,10" fill="${color}" opacity="0.95"/>
-          </svg>
-        </div>
-        <div style="position: relative;">
-          ${
-            isMoving
-              ? `<div class="bus-moving-halo" style="background: ${color};"></div>`
-              : ""
-          }
+function getVehicleIcon(line: string, heading: number): L.DivIcon {
+  const roundedRot = Math.round((heading || 0) / 15) * 15;
+  const key = `${line}_${roundedRot}`;
+  let icon = vehicleIconCache.get(key);
+  if (!icon) {
+    const color = lineColor(line);
+    icon = L.divIcon({
+      className: "bus-marker",
+      html: `
+        <div class="bus-marker-container" style="transform: translate(-50%, -50%); cursor: pointer;">
+          <div class="bus-arrow" style="transform: rotate(${roundedRot}deg);">
+            <svg width="10" height="10" viewBox="0 0 12 12" style="position:absolute;top:-8px;left:50%;transform:translateX(-50%);">
+              <polygon points="6,0 10,10 6,7 2,10" fill="${color}"/>
+            </svg>
+          </div>
           <div class="bus-badge" style="
-            position: relative;
             background: ${color};
             color: white;
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 800;
-            padding: 2px 6px;
-            border-radius: 7px;
+            padding: 1.5px 5px;
+            border-radius: 6px;
             white-space: nowrap;
-            box-shadow: 0 3px 8px rgba(0,0,0,0.35);
-            border: 2px solid white;
-            min-width: 22px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+            border: 1.5px solid white;
+            min-width: 20px;
             text-align: center;
-            line-height: 1.25;
-            display: flex;
-            align-items: center;
-            gap: 3px;
+            line-height: 1.2;
           ">
             ${line}
           </div>
         </div>
-      </div>
-    `,
-    iconSize: [0, 0],
-    iconAnchor: [0, 0],
-  });
+      `,
+      iconSize: [0, 0],
+      iconAnchor: [0, 0],
+    });
+    vehicleIconCache.set(key, icon);
+  }
+  return icon;
 }
+
+/* ── Memoized Vehicle Marker Component ── */
+const VehicleMarkerItem = memo(function VehicleMarkerItem({
+  vehicle,
+}: {
+  vehicle: Vehicle;
+}) {
+  const tram = isTram(vehicle.line);
+  const icon = getVehicleIcon(vehicle.line, vehicle.heading);
+
+  return (
+    <Marker position={[vehicle.lat, vehicle.lon]} icon={icon}>
+      <Popup>
+        <div className="text-sm min-w-[150px] p-1">
+          <div className="font-bold text-base text-gray-900 flex items-center gap-1.5">
+            {tram ? (
+              <Tram className="w-4 h-4 text-red-600" />
+            ) : (
+              <Bus className="w-4 h-4 text-blue-600" />
+            )}
+            <span>Linea {vehicle.line}</span>
+          </div>
+          <div className="flex items-center justify-between text-xs text-gray-500 mt-1.5 pt-1.5 border-t border-gray-100">
+            <span>{tram ? "Tramvia" : "Autobus"}</span>
+            {vehicle.speed > 0 ? (
+              <span className="font-bold text-blue-600">{vehicle.speed} km/h</span>
+            ) : (
+              <span className="text-gray-400">Fermo</span>
+            )}
+          </div>
+        </div>
+      </Popup>
+    </Marker>
+  );
+});
+
+/* ── Isolated Live Sync Pill (prevents map re-renders on 1s tick) ── */
+const LiveSyncPill = memo(function LiveSyncPill({
+  isRefreshing,
+  onRefresh,
+}: {
+  isRefreshing: boolean;
+  onRefresh: () => void;
+}) {
+  const [countdown, setCountdown] = useState(5);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCountdown((prev) => (prev <= 1 ? 5 : prev - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <button
+      onClick={() => {
+        setCountdown(5);
+        onRefresh();
+      }}
+      disabled={isRefreshing}
+      className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-900 text-white text-[11px] font-bold active:scale-95 transition-transform shadow-xs"
+      title="Tocca per forzare l'aggiornamento GPS immediato"
+    >
+      <RefreshCw
+        className={`w-3 h-3 ${isRefreshing ? "animate-spin text-emerald-400" : "text-slate-400"}`}
+      />
+      <span className="font-mono">
+        {isRefreshing ? "GPS..." : `${countdown}s`}
+      </span>
+      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+    </button>
+  );
+});
 
 /* ── Map Controller & User Location Layer ── */
 function MapController({
   flyToCoords,
   routeBounds,
   onLocationFound,
+  onBoundsChange,
 }: {
   flyToCoords: [number, number] | null;
   routeBounds: L.LatLngBoundsExpression | null;
   onLocationFound: (lat: number, lon: number) => void;
+  onBoundsChange: (bounds: L.LatLngBounds) => void;
 }) {
   const map = useMap();
   const [userPos, setUserPos] = useState<[number, number] | null>(null);
@@ -206,12 +276,24 @@ function MapController({
   }, [routeBounds, map]);
 
   useMapEvents({
+    moveend: (e) => {
+      onBoundsChange(e.target.getBounds());
+    },
+    zoomend: (e) => {
+      onBoundsChange(e.target.getBounds());
+    },
     locationfound: (e) => {
       setUserPos([e.latlng.lat, e.latlng.lng]);
       map.flyTo(e.latlng, 16, { duration: 1 });
       onLocationFound(e.latlng.lat, e.latlng.lng);
     },
   });
+
+  useEffect(() => {
+    if (map) {
+      onBoundsChange(map.getBounds());
+    }
+  }, [map, onBoundsChange]);
 
   if (!userPos) return null;
 
@@ -299,7 +381,7 @@ function UnifiedFilterPanel({
   return (
     <div className="absolute top-12 left-0 right-0 z-[999] pointer-events-none">
       <div className="mx-3 pointer-events-auto">
-        <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
           <div className="flex items-center gap-2 px-3 py-2.5">
             <Search className="w-4 h-4 text-slate-400 shrink-0" />
             <input
@@ -463,7 +545,7 @@ function UnifiedFilterPanel({
 
         {/* Notice when selected line has 0 live vehicles */}
         {selectedLines.size > 0 && filteredCount === 0 && (
-          <div className="mt-2 bg-amber-50/95 backdrop-blur-md border border-amber-200 rounded-2xl p-3 shadow-lg flex items-center justify-between gap-3 text-xs pointer-events-auto animate-in slide-in-from-top duration-200">
+          <div className="mt-2 bg-amber-50 border border-amber-200 rounded-2xl p-3 shadow-lg flex items-center justify-between gap-3 text-xs pointer-events-auto animate-in slide-in-from-top duration-200">
             <div className="flex items-center gap-2 text-amber-900 min-w-0">
               <Info className="w-4 h-4 text-amber-600 shrink-0" />
               <div className="truncate">
@@ -542,19 +624,16 @@ export default function BusMap() {
   const [nearestStop, setNearestStop] = useState<{ stop: StopInfo; distance: number } | null>(null);
   const [mapStyle, setMapStyle] = useState<"clean" | "minimal" | "osm">("clean");
 
-  // Live Refresh Countdown & Animation
+  // Live Refresh State
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [countdown, setCountdown] = useState(5);
+  const [mapBounds, setMapBounds] = useState<L.LatLngBounds | null>(null);
+
+  const handleBoundsChange = useCallback((b: L.LatLngBounds) => {
+    setMapBounds(b);
+  }, []);
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const mapRef = useRef<L.Map | null>(null);
-
-  useEffect(() => {
-    const cTimer = setInterval(() => {
-      setCountdown((prev) => (prev <= 1 ? 5 : prev - 1));
-    }, 1000);
-    return () => clearInterval(cTimer);
-  }, []);
 
   useEffect(() => {
     fetch("/stops.json")
@@ -594,7 +673,6 @@ export default function BusMap() {
         })
       );
       setError(null);
-      setCountdown(5);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -622,6 +700,16 @@ export default function BusMap() {
     if (selectedLines.size === 0) return vehicles;
     return vehicles.filter((v) => selectedLines.has(v.line));
   }, [vehicles, selectedLines]);
+
+  // High-performance viewport culling: renders only vehicles in view (+ 25% edge margin)
+  const visibleVehicles = useMemo(() => {
+    if (selectedLines.size > 0) {
+      return filteredVehicles;
+    }
+    if (!mapBounds) return vehicles.slice(0, 80);
+    const padded = mapBounds.pad(0.25);
+    return vehicles.filter((v) => padded.contains([v.lat, v.lon]));
+  }, [vehicles, selectedLines, mapBounds, filteredVehicles]);
 
   const handleToggleLine = useCallback((line: string) => {
     setSelectedLines((prev) => {
@@ -719,7 +807,7 @@ export default function BusMap() {
   return (
     <div className="relative w-full h-full overflow-hidden">
       {/* Top Status Bar */}
-      <div className="absolute top-0 left-0 right-0 z-[1000] bg-white/95 backdrop-blur-md border-b border-gray-100 px-4 py-2.5 flex items-center justify-between text-sm pt-safe">
+      <div className="absolute top-0 left-0 right-0 z-[1000] bg-white border-b border-gray-100 px-4 py-2.5 flex items-center justify-between text-sm pt-safe shadow-xs">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center shadow-xs">
             <Bus className="w-4 h-4" />
@@ -753,21 +841,8 @@ export default function BusMap() {
             )}
           </button>
 
-          {/* Live Sync Countdown Pill */}
-          <button
-            onClick={() => fetchVehicles()}
-            disabled={isRefreshing}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-900 text-white text-[11px] font-bold active:scale-95 transition-all shadow-xs"
-            title="Tocca per forzare l'aggiornamento GPS immediato"
-          >
-            <RefreshCw
-              className={`w-3 h-3 ${isRefreshing ? "animate-spin text-emerald-400" : "text-slate-400"}`}
-            />
-            <span className="font-mono">
-              {isRefreshing ? "GPS..." : `${countdown}s`}
-            </span>
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          </button>
+          {/* Isolated Live Sync Countdown Pill */}
+          <LiveSyncPill isRefreshing={isRefreshing} onRefresh={fetchVehicles} />
         </div>
       </div>
 
@@ -792,6 +867,7 @@ export default function BusMap() {
         className="w-full h-full"
         zoomControl={false}
         attributionControl={false}
+        preferCanvas={true}
         ref={mapRef}
       >
         {mapStyle === "clean" && (
@@ -830,6 +906,7 @@ export default function BusMap() {
           flyToCoords={flyToCoords}
           routeBounds={fitRouteTrigger}
           onLocationFound={handleLocationFound}
+          onBoundsChange={handleBoundsChange}
         />
 
         {/* Route Polylines (Tracciati) */}
@@ -876,38 +953,10 @@ export default function BusMap() {
           );
         })}
 
-        {/* Real-time bus & tram markers */}
-        {filteredVehicles.map((v) => {
-          const tram = isTram(v.line);
-          return (
-            <Marker
-              key={v.id}
-              position={[v.lat, v.lon]}
-              icon={createVehicleIcon(v.line, v.heading, v.speed)}
-            >
-              <Popup>
-                <div className="text-sm min-w-[150px] p-1">
-                  <div className="font-bold text-base text-gray-900 flex items-center gap-1.5">
-                    {tram ? (
-                      <Tram className="w-4 h-4 text-red-600" />
-                    ) : (
-                      <Bus className="w-4 h-4 text-blue-600" />
-                    )}
-                    <span>Linea {v.line}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs text-gray-500 mt-1.5 pt-1.5 border-t border-gray-100">
-                    <span>{tram ? "Tramvia" : "Autobus"}</span>
-                    {v.speed > 0 ? (
-                      <span className="font-bold text-blue-600">{v.speed} km/h</span>
-                    ) : (
-                      <span className="text-gray-400">Fermo</span>
-                    )}
-                  </div>
-                </div>
-              </Popup>
-            </Marker>
-          );
-        })}
+        {/* Real-time bus & tram markers (memoized & viewport-culled for 60fps) */}
+        {visibleVehicles.map((v) => (
+          <VehicleMarkerItem key={v.id} vehicle={v} />
+        ))}
 
         {/* Dynamic Stops Layer */}
         <StopsLayer
@@ -948,7 +997,7 @@ export default function BusMap() {
       {/* Clean Floating Legend (Bottom Left) */}
       <div className="absolute bottom-5 left-3 z-[900]">
         {showLegend ? (
-          <div className="bg-white/95 backdrop-blur-md rounded-2xl p-3 shadow-xl border border-gray-100 text-xs space-y-2 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl p-3 shadow-xl border border-gray-100 text-xs space-y-2 animate-in fade-in duration-200">
             <div className="flex items-center justify-between font-bold text-gray-900 border-b pb-1.5">
               <span>Legenda Mappa</span>
               <button
@@ -969,7 +1018,7 @@ export default function BusMap() {
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-3.5 h-3.5 rounded-full bg-blue-900 border-2 border-white shadow-xs shrink-0" />
-                <span>Fermata Palina (zoom $\ge$ 15)</span>
+                <span>Fermata Palina (zoom $\ge$ 16)</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
@@ -984,7 +1033,7 @@ export default function BusMap() {
         ) : (
           <button
             onClick={() => setShowLegend(true)}
-            className="bg-white/95 backdrop-blur-md text-gray-800 text-xs font-bold px-3 py-1.5 rounded-full shadow-lg border border-gray-100 flex items-center gap-1.5 active:scale-95 transition-transform"
+            className="bg-white text-gray-800 text-xs font-bold px-3 py-1.5 rounded-full shadow-lg border border-gray-100 flex items-center gap-1.5 active:scale-95 transition-transform"
           >
             <Info className="w-3.5 h-3.5 text-blue-600" />
             <span>Legenda</span>
