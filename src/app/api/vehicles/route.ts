@@ -16,6 +16,7 @@ export interface Vehicle {
   headsign?: string;
   statusDescription?: string;
   nextStation?: string;
+  isEstimated?: boolean;
 }
 
 export async function GET() {

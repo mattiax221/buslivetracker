@@ -52,6 +52,7 @@ import {
 } from "../lib/alarmEngine";
 import { TripItinerary, TransitNetworkData } from "../lib/tripPlanner";
 import { ShareData } from "../lib/shareUtils";
+import { estimateScheduledVehicles } from "../lib/scheduleEstimator";
 
 /* ── Types ── */
 interface Vehicle {
@@ -65,6 +66,7 @@ interface Vehicle {
   headsign?: string;
   statusDescription?: string;
   nextStation?: string;
+  isEstimated?: boolean;
 }
 
 interface ApiResponse {
@@ -182,16 +184,20 @@ function naturalSort(a: string, b: string): number {
 /* ── Cached vehicle icons (prevents DOM rebuilding & memory thrashing) ── */
 const vehicleIconCache = new Map<string, L.DivIcon>();
 
-function getVehicleIcon(line: string, heading: number): L.DivIcon {
+function getVehicleIcon(line: string, heading: number, isEstimated?: boolean): L.DivIcon {
   const roundedRot = Math.round((heading || 0) / 15) * 15;
-  const key = `${line}_${roundedRot}`;
+  const key = `${line}_${roundedRot}_${isEstimated ? "est" : "real"}`;
   let icon = vehicleIconCache.get(key);
   if (!icon) {
     const color = lineColor(line);
+    const borderStyle = isEstimated ? "1.8px dashed #fcd34d" : "1.5px solid white";
+    const opacity = isEstimated ? "0.92" : "1";
+    const shadow = isEstimated ? "0 1px 4px rgba(245,158,11,0.5)" : "0 1px 4px rgba(0,0,0,0.3)";
+
     icon = L.divIcon({
       className: "bus-marker",
       html: `
-        <div class="bus-marker-container" style="transform: translate(-50%, -50%); cursor: pointer;">
+        <div class="bus-marker-container" style="transform: translate(-50%, -50%); cursor: pointer; opacity: ${opacity};">
           <div class="bus-arrow" style="transform: rotate(${roundedRot}deg);">
             <svg width="10" height="10" viewBox="0 0 12 12" style="position:absolute;top:-8px;left:50%;transform:translateX(-50%);">
               <polygon points="6,0 10,10 6,7 2,10" fill="${color}"/>
@@ -205,13 +211,18 @@ function getVehicleIcon(line: string, heading: number): L.DivIcon {
             padding: 1.5px 5px;
             border-radius: 6px;
             white-space: nowrap;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.3);
-            border: 1.5px solid white;
+            box-shadow: ${shadow};
+            border: ${borderStyle};
             min-width: 20px;
             text-align: center;
             line-height: 1.2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
           ">
-            ${line}
+            ${isEstimated ? `<span style="font-size:8px;">⏱️</span>` : ""}
+            <span>${line}</span>
           </div>
         </div>
       `,
@@ -270,7 +281,7 @@ const VehicleMarkerItem = memo(function VehicleMarkerItem({
 }) {
   const metro = isMetro(vehicle.line);
   const tram = !metro && isTram(vehicle.line);
-  const icon = getVehicleIcon(vehicle.line, vehicle.heading);
+  const icon = getVehicleIcon(vehicle.line, vehicle.heading, vehicle.isEstimated);
 
   return (
     <Marker
@@ -295,9 +306,17 @@ const VehicleMarkerItem = memo(function VehicleMarkerItem({
               )}
               <span>{metro ? "Metro M1" : `Linea ${vehicle.line}`}</span>
             </div>
-            {metro && (
+            {vehicle.isEstimated ? (
+              <span className="text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                <span>⏱️ Stimato</span>
+              </span>
+            ) : metro ? (
               <span className="text-[10px] font-black uppercase tracking-wider bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded">
                 VAL 208
+              </span>
+            ) : (
+              <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded">
+                Live GPS
               </span>
             )}
           </div>
@@ -309,14 +328,34 @@ const VehicleMarkerItem = memo(function VehicleMarkerItem({
             </div>
           )}
 
-          {vehicle.statusDescription && (
-            <div className="text-[11px] font-medium text-emerald-700 bg-emerald-50 px-2 py-1 rounded-lg mt-1.5 border border-emerald-100/80">
-              ● {vehicle.statusDescription}
+          {vehicle.isEstimated ? (
+            <div className="text-[11px] font-medium text-amber-800 bg-amber-50 p-2 rounded-xl mt-1.5 border border-amber-200">
+              <div className="flex items-center gap-1 font-bold">
+                <Clock className="w-3.5 h-3.5 text-amber-600" />
+                <span>Posizione Stimata da Orari</span>
+              </div>
+              <p className="text-[10px] text-amber-700 mt-0.5 leading-snug">
+                Mezzo senza segnale GPS attivo. Posizione calcolata dalla tabella orari programmata GTT.
+              </p>
             </div>
+          ) : (
+            vehicle.statusDescription && (
+              <div className="text-[11px] font-medium text-emerald-700 bg-emerald-50 px-2 py-1 rounded-lg mt-1.5 border border-emerald-100/80">
+                ● {vehicle.statusDescription}
+              </div>
+            )
           )}
 
           <div className="flex items-center justify-between text-xs text-gray-500 mt-2 pt-1.5 border-t border-gray-100">
-            <span>{metro ? "Metropolitana" : tram ? "Rete Tramviaria" : "Autobus GTT"}</span>
+            <span>
+              {vehicle.isEstimated
+                ? "Orario Teorico"
+                : metro
+                ? "Metropolitana"
+                : tram
+                ? "Rete Tramviaria"
+                : "Autobus GTT"}
+            </span>
             {vehicle.speed > 0 ? (
               <span className="font-bold text-blue-600">{vehicle.speed} km/h</span>
             ) : (
@@ -1205,19 +1244,31 @@ export default function BusMap() {
     };
   }, [fetchVehicles]);
 
+  // Toggle to show/hide estimated vehicles for buses without GPS (enabled by default)
+  const [showEstimated, setShowEstimated] = useState(true);
+
+  // Merge live real GPS vehicles with schedule-estimated vehicles
+  const allVehicles = useMemo(() => {
+    if (!showEstimated || Object.keys(lineShapes).length === 0) {
+      return vehicles;
+    }
+    const estimated = estimateScheduledVehicles(vehicles, lineShapes);
+    return [...vehicles, ...estimated];
+  }, [vehicles, lineShapes, showEstimated]);
+
   const allLines = useMemo(() => {
     const lineSet = new Set<string>();
     officialRoutes.forEach((r) => lineSet.add(r.id));
-    vehicles.forEach((v) => lineSet.add(v.line));
+    allVehicles.forEach((v) => lineSet.add(v.line));
     return Array.from(lineSet).sort(naturalSort);
-  }, [officialRoutes, vehicles]);
+  }, [officialRoutes, allVehicles]);
 
   const filteredVehicles = useMemo(() => {
-    if (selectedLines.size === 0) return vehicles;
+    if (selectedLines.size === 0) return allVehicles;
     const cleanSelected = Array.from(selectedLines).flatMap(expandLineFilter);
     const cleanSet = new Set(cleanSelected);
 
-    let list = vehicles.filter((v) => {
+    let list = allVehicles.filter((v) => {
       const vClean = normalizeLine(v.line);
       return (
         cleanSet.has(vClean) ||
@@ -1243,22 +1294,22 @@ export default function BusMap() {
       }
     }
     return list;
-  }, [vehicles, selectedLines, selectedDirection]);
+  }, [allVehicles, selectedLines, selectedDirection]);
 
   // High-performance viewport culling: renders only vehicles in view (+ 25% edge margin)
   const visibleVehicles = useMemo(() => {
     // If user clicked on a specific vehicle, show ONLY that single vehicle!
     if (activeVehicleRoute) {
-      const match = vehicles.find((v) => v.id === activeVehicleRoute.vehicleId);
+      const match = allVehicles.find((v) => v.id === activeVehicleRoute.vehicleId);
       return match ? [match] : [];
     }
     if (selectedLines.size > 0) {
       return filteredVehicles;
     }
-    if (!mapBounds) return vehicles.slice(0, 80);
+    if (!mapBounds) return allVehicles.slice(0, 90);
     const padded = mapBounds.pad(0.25);
-    return vehicles.filter((v) => padded.contains([v.lat, v.lon]));
-  }, [vehicles, activeVehicleRoute, selectedLines, mapBounds, filteredVehicles]);
+    return allVehicles.filter((v) => padded.contains([v.lat, v.lon]));
+  }, [allVehicles, activeVehicleRoute, selectedLines, mapBounds, filteredVehicles]);
 
   const handleToggleLine = useCallback((rawLine: string) => {
     setSelectedDirection(null);
@@ -1572,7 +1623,7 @@ export default function BusMap() {
         onClearLines={handleClearLines}
         onSelectStop={handleSelectStop}
         filteredCount={filteredVehicles.length}
-        totalCount={count}
+        totalCount={allVehicles.length}
         hasShape={selectedLines.size === 1 && !!lineShapes[Array.from(selectedLines)[0]]}
         onFitRoute={handleFitCurrentRoute}
         savedLines={savedLines}
@@ -1599,6 +1650,11 @@ export default function BusMap() {
                 <span className="font-black">
                   {isMetro(activeVehicleRoute.line) ? "Metro M1" : `Linea ${activeVehicleRoute.line}`}
                 </span>
+                {allVehicles.find((v) => v.id === activeVehicleRoute.vehicleId)?.isEstimated && (
+                  <span className="text-[10px] bg-amber-500/25 text-amber-300 font-bold px-1.5 py-0.2 rounded ml-1.5">
+                    ⏱️ Stima Orario
+                  </span>
+                )}
                 {activeVehicleRoute.headsign && (
                   <span className="text-gray-300 font-normal ml-1.5 truncate">
                     → {activeVehicleRoute.headsign}
@@ -1609,7 +1665,7 @@ export default function BusMap() {
             <div className="flex items-center gap-1.5 shrink-0">
               <button
                 onClick={() => {
-                  const v = vehicles.find((veh) => veh.id === activeVehicleRoute.vehicleId);
+                  const v = allVehicles.find((veh) => veh.id === activeVehicleRoute.vehicleId);
                   if (v) handleShareVehicle(v);
                 }}
                 className="px-2 py-1 rounded-xl bg-emerald-600/90 hover:bg-emerald-600 active:scale-95 text-white text-[11px] font-bold transition-all flex items-center gap-1"
@@ -1939,9 +1995,45 @@ export default function BusMap() {
                 <span>Tracciamento Satellitare GPS</span>
               </div>
               <div className="flex items-center gap-2">
+                <div className="w-3.5 h-3.5 rounded-md border border-dashed border-amber-500 bg-amber-400 shrink-0 flex items-center justify-center text-[8px] font-bold text-slate-900">
+                  ⏱️
+                </div>
+                <span>Posizione Stimata da Orario (senza GPS)</span>
+              </div>
+              <div className="flex items-center gap-2">
                 <div className="w-5 h-1 rounded-full bg-slate-900 border border-white shrink-0" />
                 <span>Tracciato Percorso Linea</span>
               </div>
+            </div>
+
+            {/* Stima Orari Toggle */}
+            <div className="pt-2 border-t border-gray-100 flex items-center justify-between">
+              <div>
+                <div className="font-bold text-gray-800 text-[11px] flex items-center gap-1">
+                  <span>Stima Mezzi senza GPS</span>
+                  <span
+                    className={`text-[9px] px-1 font-bold rounded ${
+                      showEstimated ? "bg-amber-100 text-amber-800" : "bg-gray-100 text-gray-500"
+                    }`}
+                  >
+                    {showEstimated ? "Attiva" : "Spenta"}
+                  </span>
+                </div>
+                <div className="text-[10px] text-gray-400">Calcola posizione da orari GTT</div>
+              </div>
+              <button
+                onClick={() => setShowEstimated(!showEstimated)}
+                className={`w-9 h-5 flex items-center rounded-full p-0.5 transition-colors ${
+                  showEstimated ? "bg-amber-500" : "bg-gray-300"
+                }`}
+                title="Attiva o disattiva la stima dei mezzi senza GPS"
+              >
+                <div
+                  className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
+                    showEstimated ? "translate-x-4" : "translate-x-0"
+                  }`}
+                />
+              </button>
             </div>
 
             {/* Metro M1 Accessibility Link */}
