@@ -78,8 +78,10 @@ export async function GET(request: Request) {
           statusText = "GPS Live";
         }
 
+        const cleanLine = item.line.replace(/\s+/g, "").trim().toUpperCase();
+
         return {
-          line: item.line,
+          line: cleanLine || item.line,
           hour: item.hour.slice(0, 5), // "HH:MM"
           minutesRemaining: Math.max(0, diffMin),
           realtime: item.realtime,

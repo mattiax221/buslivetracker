@@ -105,14 +105,33 @@ const TRAM_LINES = new Set([
   "79",
 ]);
 
+function normalizeLine(line: string): string {
+  return line.replace(/\s+/g, "").toUpperCase();
+}
+
+function expandLineFilter(rawLine: string): string[] {
+  const clean = normalizeLine(rawLine);
+  if (clean === "16") return ["16CD", "16CS"];
+  return [clean];
+}
+
+function linesMatch(lineA: string, lineB: string): boolean {
+  const a = normalizeLine(lineA);
+  const b = normalizeLine(lineB);
+  if (a === b) return true;
+  if (a === "16" && (b === "16CD" || b === "16CS")) return true;
+  if (b === "16" && (a === "16CD" || a === "16CS")) return true;
+  return false;
+}
+
 function isMetro(line: string): boolean {
-  const clean = line.replace(/\s+/g, "").toUpperCase();
+  const clean = normalizeLine(line);
   return clean === "M1" || clean === "METRO";
 }
 
 function isTram(line: string): boolean {
   if (isMetro(line)) return false;
-  const clean = line.replace(/\s+/g, "").toUpperCase();
+  const clean = normalizeLine(line);
   if (TRAM_LINES.has(clean) || TRAM_LINES.has(line)) return true;
   if (/^16(CD|CS)?$/i.test(clean)) return true;
   return false;
@@ -356,7 +375,7 @@ const LiveSyncPill = memo(function LiveSyncPill({
   );
 });
 
-/* ── Map Controller & User Location Layer ── */
+/* ── Map Controller & High-Precision User Location Layer ── */
 function MapController({
   flyToCoords,
   routeBounds,
@@ -370,6 +389,47 @@ function MapController({
 }) {
   const map = useMap();
   const [userPos, setUserPos] = useState<[number, number] | null>(null);
+  const [userAccuracy, setUserAccuracy] = useState<number>(20);
+  const hasCenteredUserRef = useRef(false);
+
+  // Immediate high-precision GPS on mount & live continuous tracking
+  useEffect(() => {
+    if (typeof window === "undefined" || !("geolocation" in navigator)) return;
+
+    const handlePos = (pos: GeolocationPosition) => {
+      const { latitude, longitude, accuracy } = pos.coords;
+      setUserPos([latitude, longitude]);
+      setUserAccuracy(Math.min(accuracy, 120));
+      onLocationFound(latitude, longitude);
+
+      // On first load, automatically fly smoothly to user position!
+      if (!hasCenteredUserRef.current) {
+        hasCenteredUserRef.current = true;
+        map.flyTo([latitude, longitude], 16, { duration: 1.2 });
+      }
+    };
+
+    const handleErr = (err: GeolocationPositionError) => {
+      console.warn("High-accuracy GPS notice:", err.message);
+      map.locate({ enableHighAccuracy: true, maxZoom: 16 });
+    };
+
+    // Request immediate high-accuracy fix
+    navigator.geolocation.getCurrentPosition(handlePos, handleErr, {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0,
+    });
+
+    // Continuous watch for movement with high accuracy
+    const watchId = navigator.geolocation.watchPosition(handlePos, handleErr, {
+      enableHighAccuracy: true,
+      timeout: 15000,
+      maximumAge: 2000,
+    });
+
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, [map, onLocationFound]);
 
   useEffect(() => {
     if (flyToCoords) {
@@ -392,7 +452,10 @@ function MapController({
     },
     locationfound: (e) => {
       setUserPos([e.latlng.lat, e.latlng.lng]);
-      map.flyTo(e.latlng, 16, { duration: 1 });
+      if (!hasCenteredUserRef.current) {
+        hasCenteredUserRef.current = true;
+        map.flyTo(e.latlng, 16, { duration: 1.2 });
+      }
       onLocationFound(e.latlng.lat, e.latlng.lng);
     },
   });
@@ -407,16 +470,18 @@ function MapController({
 
   return (
     <>
+      {/* Accuracy radius ring */}
       <CircleMarker
         center={userPos}
-        radius={22}
+        radius={Math.max(14, Math.min(userAccuracy, 45))}
         pathOptions={{
-          color: "#3b82f6",
-          weight: 1,
+          color: "#2563eb",
+          weight: 1.5,
           fillColor: "#3b82f6",
-          fillOpacity: 0.2,
+          fillOpacity: 0.15,
         }}
       />
+      {/* Center GPS blue beacon dot */}
       <CircleMarker
         center={userPos}
         radius={7}
@@ -1079,7 +1144,17 @@ export default function BusMap() {
 
   const filteredVehicles = useMemo(() => {
     if (selectedLines.size === 0) return vehicles;
-    let list = vehicles.filter((v) => selectedLines.has(v.line));
+    const cleanSelected = Array.from(selectedLines).flatMap(expandLineFilter);
+    const cleanSet = new Set(cleanSelected);
+
+    let list = vehicles.filter((v) => {
+      const vClean = normalizeLine(v.line);
+      return (
+        cleanSet.has(vClean) ||
+        (cleanSet.has("16") && (vClean === "16CD" || vClean === "16CS"))
+      );
+    });
+
     if (selectedLines.size === 1 && selectedDirection !== null) {
       if (selectedDirection === "0") {
         list = list.filter(
@@ -1115,12 +1190,17 @@ export default function BusMap() {
     return vehicles.filter((v) => padded.contains([v.lat, v.lon]));
   }, [vehicles, activeVehicleRoute, selectedLines, mapBounds, filteredVehicles]);
 
-  const handleToggleLine = useCallback((line: string) => {
+  const handleToggleLine = useCallback((rawLine: string) => {
     setSelectedDirection(null);
+    const expanded = expandLineFilter(rawLine);
     setSelectedLines((prev) => {
       const next = new Set(prev);
-      if (next.has(line)) next.delete(line);
-      else next.add(line);
+      const allIn = expanded.every((l) => next.has(l));
+      if (allIn) {
+        expanded.forEach((l) => next.delete(l));
+      } else {
+        expanded.forEach((l) => next.add(l));
+      }
       return next;
     });
   }, []);
@@ -1133,10 +1213,10 @@ export default function BusMap() {
   // Auto-fit route bounds when a single line is selected
   useEffect(() => {
     if (selectedLines.size === 1) {
-      const line = Array.from(selectedLines)[0];
-      if (lastFittedLineRef.current !== line) {
-        lastFittedLineRef.current = line;
-        const shapes = lineShapes[line];
+      const rawLine = Array.from(selectedLines)[0];
+      if (lastFittedLineRef.current !== rawLine) {
+        lastFittedLineRef.current = rawLine;
+        const shapes = lineShapes[rawLine] || lineShapes[normalizeLine(rawLine)];
         if (shapes && shapes.length > 0) {
           const allPts = shapes.flatMap((s) => s.pts);
           if (allPts.length > 0) {
@@ -1151,8 +1231,8 @@ export default function BusMap() {
   }, [selectedLines, lineShapes]);
 
   const handleFitRouteForLine = useCallback(
-    (line: string) => {
-      const shapes = lineShapes[line];
+    (rawLine: string) => {
+      const shapes = lineShapes[rawLine] || lineShapes[normalizeLine(rawLine)];
       if (shapes && shapes.length > 0) {
         const allPts = shapes.flatMap((s) => s.pts);
         if (allPts.length > 0) {
@@ -1165,7 +1245,7 @@ export default function BusMap() {
 
   const handleSelectVehicle = useCallback(
     (v: Vehicle) => {
-      const shapes = lineShapes[v.line] || [];
+      const shapes = lineShapes[v.line] || lineShapes[normalizeLine(v.line)] || [];
       const matchedDir = getVehicleDirection(v, shapes);
       setActiveVehicleRoute({
         vehicleId: v.id,
@@ -1185,8 +1265,8 @@ export default function BusMap() {
 
   const availableDirections = useMemo(() => {
     if (selectedLines.size !== 1) return [];
-    const line = Array.from(selectedLines)[0];
-    const shapes = lineShapes[line] || [];
+    const rawLine = Array.from(selectedLines)[0];
+    const shapes = lineShapes[rawLine] || lineShapes[normalizeLine(rawLine)] || [];
     return shapes.map((s) => ({ dir: s.dir, headsign: s.headsign }));
   }, [selectedLines, lineShapes]);
 
@@ -1206,7 +1286,7 @@ export default function BusMap() {
     }[] = [];
 
     linesToRender.forEach((line) => {
-      const shapes = lineShapes[line] || [];
+      const shapes = lineShapes[line] || lineShapes[normalizeLine(line)] || [];
       const isFromVehicle = activeVehicleRoute?.line === line;
 
       shapes.forEach((s) => {
