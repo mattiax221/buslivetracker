@@ -3,8 +3,8 @@ const readline = require("readline");
 const path = require("path");
 
 async function processStops() {
-  const inputPath = path.resolve("C:/Users/mattiax/.gemini/antigravity/scratch/gtt_gtfs_extracted/stops.txt");
-  const outputPath = path.resolve("C:/Users/mattiax/.gemini/antigravity/scratch/gtt-live/public/stops.json");
+  const inputPath = path.resolve(__dirname, "../gtt_gtfs_extracted/stops.txt");
+  const outputPath = path.resolve(__dirname, "public/stops.json");
 
   const fileStream = fs.createReadStream(inputPath);
   const rl = readline.createInterface({ input: fileStream, crlfDelay: Infinity });

@@ -14,7 +14,7 @@ function parseCSVLine(line) {
 
 async function buildShapes() {
   console.log("1. Mapping routes to best shapes with CSV parser...");
-  const tripsStream = fs.createReadStream("C:/Users/mattiax/.gemini/antigravity/scratch/gtt_gtfs_extracted/trips.txt");
+  const tripsStream = fs.createReadStream(path.resolve(__dirname, "../gtt_gtfs_extracted/trips.txt"));
   const rlTrips = readline.createInterface({ input: tripsStream, crlfDelay: Infinity });
 
   // line -> directionId -> shapeId -> { count, headsign }
@@ -78,7 +78,7 @@ async function buildShapes() {
   console.log("Sample Line 15 targets:", lineToShapeMeta["15"]);
 
   console.log("2. Extracting points from shapes.txt...");
-  const shapesStream = fs.createReadStream("C:/Users/mattiax/.gemini/antigravity/scratch/gtt_gtfs_extracted/shapes.txt");
+  const shapesStream = fs.createReadStream(path.resolve(__dirname, "../gtt_gtfs_extracted/shapes.txt"));
   const rlShapes = readline.createInterface({ input: shapesStream, crlfDelay: Infinity });
 
   // shapeId -> [[lat, lon], ...]
@@ -126,7 +126,7 @@ async function buildShapes() {
     }
   }
 
-  const outPath = path.resolve("C:/Users/mattiax/.gemini/antigravity/scratch/gtt-live/public/line-shapes.json");
+  const outPath = path.resolve(__dirname, "public/line-shapes.json");
   fs.writeFileSync(outPath, JSON.stringify(finalLineShapes));
   const stats = fs.statSync(outPath);
   console.log(`SUCCESS! Saved line shapes to ${outPath} (${(stats.size / 1024).toFixed(1)} KB)`);

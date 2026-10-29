@@ -1,8 +1,8 @@
 const fs = require("fs");
 const path = require("path");
 
-const inputPath = path.resolve("C:/Users/mattiax/.gemini/antigravity/scratch/gtt_gtfs_extracted/routes.txt");
-const outputPath = path.resolve("C:/Users/mattiax/.gemini/antigravity/scratch/gtt-live/public/routes.json");
+const inputPath = path.resolve(__dirname, "../gtt_gtfs_extracted/routes.txt");
+const outputPath = path.resolve(__dirname, "public/routes.json");
 
 const content = fs.readFileSync(inputPath, "utf8");
 const lines = content.split(/\r?\n/);
