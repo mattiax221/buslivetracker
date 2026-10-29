@@ -1,4 +1,5 @@
 // Commute Alarm Engine: Web Audio chime synthesis, Vibration, & Schedule Checker
+// with PWA Service Worker background notification support
 
 export interface CommuteAlarm {
   id: string;
@@ -11,6 +12,21 @@ export interface CommuteAlarm {
   thresholdMinutes: number; // e.g. 3 or 5 min
   enabled: boolean;
   lastTriggeredDate?: string; // YYYY-MM-DD to avoid repeating on same day
+}
+
+// 0. Register Service Worker on client mount
+export async function registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {
+  if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
+    return null;
+  }
+  try {
+    const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+    console.log("Service Worker registered successfully with scope:", reg.scope);
+    return reg;
+  } catch (err) {
+    console.warn("Service Worker registration failed:", err);
+    return null;
+  }
 }
 
 // 1. Synthesize a clean, pleasant two-tone transit chime via Web Audio API (zero audio file dependencies)
@@ -74,18 +90,40 @@ export async function requestNotificationPermission(): Promise<boolean> {
   return false;
 }
 
-// 4. Send desktop/mobile system notification
-export function sendSystemNotification(title: string, body: string) {
-  if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+// 4. Send desktop/mobile system notification (via Service Worker if available for background support)
+export async function sendSystemNotification(title: string, body: string, data?: string) {
+  if (typeof window === "undefined" || !("Notification" in window) || Notification.permission !== "granted") {
+    return;
+  }
+
+  // Attempt to use Service Worker registration for robust background notification
+  if ("serviceWorker" in navigator) {
     try {
-      new Notification(title, {
-        body,
-        icon: "/icon-192.png",
-        badge: "/icon-192.png",
-      });
-    } catch {
-      // Ignored
+      const reg = await navigator.serviceWorker.ready;
+      if (reg && "showNotification" in reg) {
+        await (reg as any).showNotification(title, {
+          body,
+          icon: "/icon-192.png",
+          badge: "/icon-192.png",
+          vibrate: [200, 100, 200, 100, 400],
+          data: data || "/",
+        });
+        return;
+      }
+    } catch (err) {
+      console.warn("SW showNotification fallback to standard Notification", err);
     }
+  }
+
+  // Fallback to standard web notification
+  try {
+    new Notification(title, {
+      body,
+      icon: "/icon-192.png",
+      badge: "/icon-192.png",
+    });
+  } catch {
+    // Ignored
   }
 }
 
@@ -111,4 +149,3 @@ export function isAlarmActiveNow(alarm: CommuteAlarm): boolean {
 
   return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
 }
-

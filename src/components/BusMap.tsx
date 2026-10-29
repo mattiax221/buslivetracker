@@ -32,19 +32,26 @@ import {
   Bell,
   TrainTrack,
   ArrowRight,
+  Share2,
 } from "lucide-react";
 import StopsLayer, { StopData } from "./StopsLayer";
 import StopBottomSheet from "./StopBottomSheet";
 import AlertsBottomSheet from "./AlertsBottomSheet";
 import AIAssistantSheet from "./AIAssistantSheet";
 import FavoritesSheet from "./FavoritesSheet";
+import TripPlannerSheet from "./TripPlannerSheet";
+import MetroAccessibilitySheet from "./MetroAccessibilitySheet";
+import ShareModal from "./ShareModal";
 import {
   CommuteAlarm,
   playTransitChime,
   triggerVibration,
   isAlarmActiveNow,
   sendSystemNotification,
+  registerServiceWorker,
 } from "../lib/alarmEngine";
+import { TripItinerary, TransitNetworkData } from "../lib/tripPlanner";
+import { ShareData } from "../lib/shareUtils";
 
 /* ── Types ── */
 interface Vehicle {
@@ -252,11 +259,13 @@ const VehicleMarkerItem = memo(function VehicleMarkerItem({
   vehicle,
   onSelectVehicle,
   onFitRoute,
+  onShareVehicle,
   isActiveRoute,
 }: {
   vehicle: Vehicle;
   onSelectVehicle?: (v: Vehicle) => void;
   onFitRoute?: (line: string) => void;
+  onShareVehicle?: (v: Vehicle) => void;
   isActiveRoute?: boolean;
 }) {
   const metro = isMetro(vehicle.line);
@@ -274,7 +283,7 @@ const VehicleMarkerItem = memo(function VehicleMarkerItem({
       }}
     >
       <Popup>
-        <div className="text-sm min-w-[180px] p-1 font-sans">
+        <div className="text-sm min-w-[190px] p-1 font-sans">
           <div className="font-bold text-base text-gray-900 flex items-center justify-between gap-1.5">
             <div className="flex items-center gap-1.5">
               {metro ? (
@@ -316,16 +325,27 @@ const VehicleMarkerItem = memo(function VehicleMarkerItem({
           </div>
 
           <div className="mt-2 pt-2 border-t border-gray-100 flex items-center justify-between gap-1.5">
-            <div className="flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60">
-              <span>🛤️ Tracciato attivo</span>
-            </div>
+            {onShareVehicle && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onShareVehicle(vehicle);
+                }}
+                className="px-2 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-[11px] font-bold flex items-center gap-1 active:scale-95 transition-all border border-emerald-200/80"
+                title="Condividi posizione e arrivo del mezzo"
+              >
+                <Share2 className="w-3 h-3 text-emerald-600" />
+                <span>Condividi</span>
+              </button>
+            )}
+
             {onFitRoute && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   onFitRoute(vehicle.line);
                 }}
-                className="px-2 py-0.5 rounded-md bg-slate-900 text-white text-[10px] font-bold hover:bg-slate-800 active:scale-95 transition-all shadow-xs"
+                className="px-2 py-1 rounded-lg bg-slate-900 text-white text-[11px] font-bold hover:bg-slate-800 active:scale-95 transition-all shadow-xs"
               >
                 Inquadra tutto
               </button>
@@ -515,6 +535,8 @@ function UnifiedFilterPanel({
   selectedDirection,
   onSelectDirection,
   availableDirections,
+  onOpenTripPlanner,
+  onOpenMetroAccessibility,
 }: {
   allLines: string[];
   allStops: StopData[];
@@ -533,6 +555,8 @@ function UnifiedFilterPanel({
   selectedDirection: string | null;
   onSelectDirection: (dir: string | null) => void;
   availableDirections: { dir: string; headsign: string }[];
+  onOpenTripPlanner?: () => void;
+  onOpenMetroAccessibility?: () => void;
 }) {
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState(false);
@@ -715,6 +739,15 @@ function UnifiedFilterPanel({
                             : "Live"}
                         </span>
                       </button>
+
+                      {onOpenMetroAccessibility && (
+                        <button
+                          onClick={onOpenMetroAccessibility}
+                          className="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-rose-50 text-rose-900 border border-rose-200/80 hover:bg-rose-100 flex items-center gap-1 active:scale-95 transition-all"
+                        >
+                          <span>♿ Ascensori & Scale Mobili</span>
+                        </button>
+                      )}
                     </div>
                   </>
                 )}
@@ -793,16 +826,38 @@ function UnifiedFilterPanel({
         )}
       </div>
 
-      {/* Quick 1-Click Favorites Row (shown when idle) */}
-      {!expanded && !isFiltering && (savedLines.length > 0 || savedStops.length > 0) && (
+      {/* Quick 1-Click Action Row (shown when idle) */}
+      {!expanded && !isFiltering && (
         <div className="mx-3 mt-2 flex items-center gap-1.5 overflow-x-auto pb-1 pointer-events-auto">
-          <button
-            onClick={onOpenFavorites}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500 text-white shadow-xs shrink-0 active:scale-95 transition-transform"
-          >
-            <Star className="w-3 h-3 fill-current" />
-            <span>I tuoi Preferiti</span>
-          </button>
+          {onOpenTripPlanner && (
+            <button
+              onClick={onOpenTripPlanner}
+              className="flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-blue-600 text-white shadow-xs shrink-0 active:scale-95 hover:bg-blue-700 transition-all"
+            >
+              <Navigation className="w-3 h-3" />
+              <span>Calcola Percorso</span>
+            </button>
+          )}
+
+          {onOpenFavorites && (savedLines.length > 0 || savedStops.length > 0) && (
+            <button
+              onClick={onOpenFavorites}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500 text-white shadow-xs shrink-0 active:scale-95 transition-transform"
+            >
+              <Star className="w-3 h-3 fill-current" />
+              <span>I tuoi Preferiti</span>
+            </button>
+          )}
+
+          {onOpenMetroAccessibility && (
+            <button
+              onClick={onOpenMetroAccessibility}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-white text-gray-800 shadow-xs border border-gray-200 shrink-0 hover:bg-gray-50 active:scale-95 transition-all"
+            >
+              <span>♿ Ascensori M1</span>
+            </button>
+          )}
+
           {savedLines.map((line) => (
             <button
               key={`fav-line-${line}`}
@@ -919,11 +974,19 @@ export default function BusMap() {
   const [fitRouteTrigger, setFitRouteTrigger] = useState<L.LatLngBoundsExpression | null>(null);
   const lastFittedLineRef = useRef<string | null>(null);
 
-  // Sheets
+  // Sheets & Modals
   const [isAlertsOpen, setIsAlertsOpen] = useState(false);
   const [isAIOpen, setIsAIOpen] = useState(false);
   const [alertsCount, setAlertsCount] = useState(0);
   const [showLegend, setShowLegend] = useState(false);
+
+  // Trip Planner & Accessibility & Share State
+  const [isTripPlannerOpen, setIsTripPlannerOpen] = useState(false);
+  const [transitNetwork, setTransitNetwork] = useState<TransitNetworkData | null>(null);
+  const [activeItinerary, setActiveItinerary] = useState<TripItinerary | null>(null);
+  const [userCoords, setUserCoords] = useState<[number, number] | null>(null);
+  const [isAccessibilityOpen, setIsAccessibilityOpen] = useState(false);
+  const [shareModalData, setShareModalData] = useState<ShareData | null>(null);
 
   // Favorites & Alarms State
   const [isFavoritesOpen, setIsFavoritesOpen] = useState(false);
@@ -959,8 +1022,15 @@ export default function BusMap() {
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const mapRef = useRef<L.Map | null>(null);
 
-  // Load localStorage favorites & alarms
+  // Load localStorage favorites & alarms, register ServiceWorker, load transit network
   useEffect(() => {
+    registerServiceWorker();
+
+    fetch("/transit-network.json")
+      .then((res) => res.json())
+      .then((data) => setTransitNetwork(data))
+      .catch((err) => console.warn("Could not load transit network:", err));
+
     try {
       const l = localStorage.getItem("gtt_fav_lines");
       if (l) setSavedLines(JSON.parse(l));
@@ -1349,6 +1419,7 @@ export default function BusMap() {
 
   const handleLocationFound = useCallback(
     (lat: number, lon: number) => {
+      setUserCoords([lat, lon]);
       if (allStops.length === 0) return;
 
       let closest: StopData | null = null;
@@ -1378,6 +1449,36 @@ export default function BusMap() {
     },
     [allStops]
   );
+
+  const handleSelectItinerary = useCallback((itinerary: TripItinerary) => {
+    setActiveItinerary(itinerary);
+    const allCoords: [number, number][] = itinerary.legs.flatMap((l) => l.path);
+    if (allCoords.length > 0) {
+      setFitRouteTrigger(L.latLngBounds(allCoords));
+    }
+  }, []);
+
+  const handleShareVehicle = useCallback((v: Vehicle) => {
+    const isM1 = isMetro(v.line);
+    const lineLabel = isM1 ? "Metro M1 (VAL 208)" : `Linea ${v.line}`;
+    const headsignText = v.headsign ? ` in direzione ${v.headsign}` : "";
+    const speedText = v.speed > 0 ? `in marcia a ${v.speed} km/h` : "in sosta/fermata";
+    const status = v.statusDescription ? ` (${v.statusDescription})` : "";
+
+    setShareModalData({
+      title: `Condividi ${lineLabel}`,
+      text: `🚌 Sto seguendo ${lineLabel}${headsignText} a Torino!\nStato: ${speedText}${status}.\nTraccia la posizione in tempo reale:`,
+      url: typeof window !== "undefined" ? `${window.location.origin}/?line=${v.line}` : "https://github.com/mattiax221/buslivetracker",
+    });
+  }, []);
+
+  const handleShareTrip = useCallback((itinerary: TripItinerary) => {
+    setShareModalData({
+      title: `Itinerario: ${itinerary.summary}`,
+      text: `🗺️ Ecco il percorso calcolato con GTT Live a Torino:\n• Mezzi: ${itinerary.summary}\n• Tempo stimato: ${itinerary.totalMinutes} min (Arrivo ${itinerary.arrivalTime})\n• Cambi: ${itinerary.transfersCount}`,
+      url: typeof window !== "undefined" ? window.location.origin : "https://github.com/mattiax221/buslivetracker",
+    });
+  }, []);
 
   return (
     <div className="relative w-full h-full overflow-hidden">
@@ -1481,6 +1582,8 @@ export default function BusMap() {
         selectedDirection={selectedDirection}
         onSelectDirection={setSelectedDirection}
         availableDirections={availableDirections}
+        onOpenTripPlanner={() => setIsTripPlannerOpen(true)}
+        onOpenMetroAccessibility={() => setIsAccessibilityOpen(true)}
       />
 
       {/* Active Clicked Vehicle Route Banner */}
@@ -1505,6 +1608,17 @@ export default function BusMap() {
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
               <button
+                onClick={() => {
+                  const v = vehicles.find((veh) => veh.id === activeVehicleRoute.vehicleId);
+                  if (v) handleShareVehicle(v);
+                }}
+                className="px-2 py-1 rounded-xl bg-emerald-600/90 hover:bg-emerald-600 active:scale-95 text-white text-[11px] font-bold transition-all flex items-center gap-1"
+                title="Condividi posizione e arrivo del mezzo"
+              >
+                <Share2 className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Condividi</span>
+              </button>
+              <button
                 onClick={() => handleFitRouteForLine(activeVehicleRoute.line)}
                 className="px-2.5 py-1 rounded-xl bg-white/15 hover:bg-white/25 active:scale-95 text-white text-[11px] font-bold transition-all"
               >
@@ -1516,6 +1630,46 @@ export default function BusMap() {
                 title="Torna a vedere tutti i mezzi"
               >
                 <span>Mostra tutti</span>
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Active Trip Planner Itinerary Banner */}
+      {activeItinerary && (
+        <div className="absolute top-26 left-3 right-3 z-[998] pointer-events-none">
+          <div className="bg-slate-900/95 backdrop-blur-md text-white px-3.5 py-2.5 rounded-2xl shadow-2xl flex items-center justify-between gap-2.5 pointer-events-auto border border-blue-500/40 animate-in slide-in-from-top duration-200">
+            <div className="flex items-center gap-2 min-w-0">
+              <Navigation className="w-4 h-4 text-blue-400 shrink-0" />
+              <div className="min-w-0 text-xs">
+                <span className="font-black text-white">{activeItinerary.summary}</span>
+                <span className="text-gray-300 ml-1.5 font-medium truncate">
+                  • {activeItinerary.totalMinutes} min (Arrivo {activeItinerary.arrivalTime})
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                onClick={() => handleShareTrip(activeItinerary)}
+                className="px-2.5 py-1 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white text-[11px] font-bold transition-all flex items-center gap-1"
+                title="Condividi itinerario"
+              >
+                <Share2 className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Condividi</span>
+              </button>
+              <button
+                onClick={() => setIsTripPlannerOpen(true)}
+                className="px-2.5 py-1 rounded-xl bg-white/15 hover:bg-white/25 active:scale-95 text-white text-[11px] font-bold transition-all"
+              >
+                Dettagli
+              </button>
+              <button
+                onClick={() => setActiveItinerary(null)}
+                className="p-1.5 rounded-xl bg-red-600/90 hover:bg-red-600 active:scale-95 text-white text-[11px] font-bold transition-all"
+                title="Chiudi itinerario"
+              >
                 <X className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -1624,6 +1778,75 @@ export default function BusMap() {
           );
         })}
 
+        {/* Active Trip Planner Multi-Modal Polylines */}
+        {activeItinerary &&
+          activeItinerary.legs.map((leg, lIdx) => {
+            if (leg.type === "WALK") {
+              return (
+                <Polyline
+                  key={`itinerary-walk-${lIdx}`}
+                  positions={leg.path}
+                  pathOptions={{
+                    color: "#2563eb",
+                    weight: 4,
+                    dashArray: "6, 8",
+                    opacity: 0.9,
+                    lineCap: "round",
+                  }}
+                >
+                  <Tooltip sticky>
+                    <div className="text-xs font-sans">
+                      <span className="font-bold">A piedi ({leg.durationMinutes} min)</span>
+                      <div className="text-gray-500">{leg.distanceMeters} metri</div>
+                    </div>
+                  </Tooltip>
+                </Polyline>
+              );
+            }
+
+            const isM1 = leg.mode === "METRO";
+            const isTr = leg.mode === "TRAM";
+            const color = isM1 ? "#e11d48" : isTr ? "#dc2626" : lineColor(leg.line || "1");
+
+            return (
+              <Fragment key={`itinerary-transit-${lIdx}`}>
+                {/* High contrast dark casing */}
+                <Polyline
+                  positions={leg.path}
+                  pathOptions={{
+                    color: "#0f172a",
+                    weight: 8,
+                    opacity: 0.95,
+                    lineCap: "round",
+                    lineJoin: "round",
+                  }}
+                />
+                <Polyline
+                  positions={leg.path}
+                  pathOptions={{
+                    color,
+                    weight: 5,
+                    opacity: 1,
+                    lineCap: "round",
+                    lineJoin: "round",
+                  }}
+                >
+                  <Tooltip sticky>
+                    <div className="text-xs font-sans">
+                      <span className="font-bold">
+                        {isM1 ? "Metro M1" : `Linea ${leg.line}`}
+                      </span>
+                      {leg.headsign && <div className="text-gray-600">→ {leg.headsign}</div>}
+                      <div className="text-[10px] text-gray-500 mt-0.5">
+                        {leg.stopsCount} fermate • {leg.durationMinutes} min
+                      </div>
+                    </div>
+                  </Tooltip>
+                </Polyline>
+              </Fragment>
+            );
+          })}
+
         {/* Real-time bus, tram & metro markers */}
         {visibleVehicles.map((v) => (
           <VehicleMarkerItem
@@ -1631,6 +1854,7 @@ export default function BusMap() {
             vehicle={v}
             onSelectVehicle={handleSelectVehicle}
             onFitRoute={handleFitRouteForLine}
+            onShareVehicle={handleShareVehicle}
             isActiveRoute={activeVehicleRoute?.vehicleId === v.id}
           />
         ))}
@@ -1644,6 +1868,15 @@ export default function BusMap() {
 
       {/* Floating Action Buttons (Right Side) */}
       <div className="absolute bottom-20 right-3 z-[1000] flex flex-col gap-2.5">
+        {/* Trip Planner A->B Floating Button */}
+        <button
+          onClick={() => setIsTripPlannerOpen(true)}
+          className="bg-blue-600 hover:bg-blue-700 text-white rounded-full w-12 h-12 flex items-center justify-center shadow-xl border border-blue-500 active:scale-95 transition-transform"
+          title="Calcola percorso da A a B (Google Maps style)"
+        >
+          <Navigation className="w-5 h-5" />
+        </button>
+
         {/* Map style toggle */}
         <button
           onClick={() => {
@@ -1711,8 +1944,26 @@ export default function BusMap() {
               </div>
             </div>
 
-            {/* GitHub Open Source Link */}
+            {/* Metro M1 Accessibility Link */}
             <div className="pt-2 border-t border-gray-100">
+              <button
+                onClick={() => {
+                  setShowLegend(false);
+                  setIsAccessibilityOpen(true);
+                }}
+                className="w-full flex items-center justify-between p-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-900 font-bold transition-all text-[11px] border border-rose-200/80 active:scale-95"
+              >
+                <span className="flex items-center gap-1.5">
+                  <span>♿ Accessibilità Metro M1</span>
+                </span>
+                <span className="text-[10px] bg-rose-200/70 text-rose-800 px-1.5 py-0.5 rounded font-mono">
+                  23 Stazioni ↗
+                </span>
+              </button>
+            </div>
+
+            {/* GitHub Open Source Link */}
+            <div className="pt-1.5 border-t border-gray-100">
               <a
                 href="https://github.com/mattiax221/buslivetracker"
                 target="_blank"
@@ -1737,6 +1988,13 @@ export default function BusMap() {
             >
               <Info className="w-3.5 h-3.5 text-blue-600" />
               <span>Legenda</span>
+            </button>
+            <button
+              onClick={() => setIsAccessibilityOpen(true)}
+              className="bg-white/95 backdrop-blur-xs text-gray-800 text-xs font-bold px-3 py-1.5 rounded-full shadow-lg border border-gray-200/80 flex items-center gap-1.5 active:scale-95 transition-transform hover:bg-rose-50"
+              title="Accessibilità e ascensori Metro M1"
+            >
+              <span>♿ Metro M1</span>
             </button>
             <a
               href="https://github.com/mattiax221/buslivetracker"
@@ -1791,6 +2049,7 @@ export default function BusMap() {
         }}
         isFavorite={selectedStop ? savedStops.some((s) => s.code === selectedStop.code) : false}
         onToggleFavorite={handleToggleStopFavorite}
+        onShareStop={(data) => setShareModalData(data)}
       />
 
       {/* Service Alerts Bottom Sheet */}
@@ -1830,6 +2089,38 @@ export default function BusMap() {
         onSelectStop={(code) => {
           handleSelectStopByCode(code);
         }}
+      />
+
+      {/* Google Maps-Style Trip Planner Sheet */}
+      <TripPlannerSheet
+        isOpen={isTripPlannerOpen}
+        onClose={() => setIsTripPlannerOpen(false)}
+        userCoords={userCoords}
+        allStops={allStops}
+        transitNetwork={transitNetwork}
+        lineShapes={lineShapes}
+        liveVehicles={vehicles}
+        onSelectItinerary={handleSelectItinerary}
+        onShareTrip={handleShareTrip}
+      />
+
+      {/* Metro M1 Accessibility Sheet */}
+      <MetroAccessibilitySheet
+        isOpen={isAccessibilityOpen}
+        onClose={() => setIsAccessibilityOpen(false)}
+        onFocusStation={(code) => {
+          const st = transitNetwork?.metroStations.find((m) => m.code === code);
+          if (st) {
+            setFlyToCoords([st.lat, st.lon]);
+          }
+        }}
+      />
+
+      {/* Rapid WhatsApp / Telegram Transit Sharing Modal */}
+      <ShareModal
+        isOpen={!!shareModalData}
+        onClose={() => setShareModalData(null)}
+        data={shareModalData}
       />
     </div>
   );

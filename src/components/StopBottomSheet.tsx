@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { X, RefreshCw, Clock, Radio, Bus, TramFront as Tram, Star } from "lucide-react";
+import { X, RefreshCw, Clock, Radio, Bus, TramFront as Tram, Star, Share2 } from "lucide-react";
 
 interface StopArrival {
   line: string;
@@ -25,6 +25,7 @@ interface StopBottomSheetProps {
   onSelectLine?: (line: string) => void;
   isFavorite?: boolean;
   onToggleFavorite?: (stop: { code: string; name: string }) => void;
+  onShareStop?: (data: { title: string; text: string; url: string }) => void;
 }
 
 function isTramLine(line: string): boolean {
@@ -38,6 +39,7 @@ export default function StopBottomSheet({
   onSelectLine,
   isFavorite,
   onToggleFavorite,
+  onShareStop,
 }: StopBottomSheetProps) {
   const [arrivals, setArrivals] = useState<StopArrival[]>([]);
   const [loading, setLoading] = useState(false);
@@ -124,6 +126,25 @@ export default function StopBottomSheet({
                     isFavorite ? "text-amber-500 fill-amber-500" : "text-gray-400"
                   }`}
                 />
+              </button>
+            )}
+
+            {stop && onShareStop && (
+              <button
+                onClick={() => {
+                  const arrSummary = arrivals.length > 0
+                    ? "\nProssimi passaggi:\n" + arrivals.slice(0, 3).map((a) => `• Linea ${a.line}: ${a.minutesRemaining <= 0 ? "In arrivo" : `${a.minutesRemaining} min`} (${a.hour})`).join("\n")
+                    : "";
+                  onShareStop({
+                    title: `Fermata ${stop.name} (#${stop.code})`,
+                    text: `📍 Orari in tempo reale per la fermata ${stop.name} (Palina #${stop.code}) a Torino:${arrSummary}`,
+                    url: typeof window !== "undefined" ? `${window.location.origin}/?stop=${stop.code}` : "https://github.com/mattiax221/buslivetracker",
+                  });
+                }}
+                className="p-2 rounded-full hover:bg-gray-100 active:bg-gray-200 text-gray-600 transition-colors"
+                title="Condividi orari fermata su WhatsApp / Telegram"
+              >
+                <Share2 className="w-4 h-4" />
               </button>
             )}
 
