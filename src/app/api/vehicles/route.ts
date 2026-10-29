@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import GtfsRealtimeBindings from "gtfs-realtime-bindings";
+import { getMetroVehicles } from "../../../lib/metroEngine";
 
 const VEHICLE_POSITIONS_URL =
   "https://percorsieorari.gtt.to.it/das_gtfsrt/vehicle_position.aspx";
@@ -12,6 +13,9 @@ export interface Vehicle {
   speed: number;
   line: string;
   tripId: string;
+  headsign?: string;
+  statusDescription?: string;
+  nextStation?: string;
 }
 
 export async function GET() {
@@ -58,6 +62,14 @@ export async function GET() {
         line: line || "?",
         tripId: vp.trip?.tripId ?? "",
       });
+    }
+
+    // Inject high-precision VAL 208 Metro M1 real-time train positions
+    try {
+      const metroTrains = getMetroVehicles();
+      vehicles.push(...metroTrains);
+    } catch (metroErr) {
+      console.error("Error generating metro vehicles:", metroErr);
     }
 
     return NextResponse.json({

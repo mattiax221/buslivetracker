@@ -111,3 +111,4 @@ export function isAlarmActiveNow(alarm: CommuteAlarm): boolean {
 
   return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
 }
+

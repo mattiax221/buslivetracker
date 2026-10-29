@@ -55,6 +55,9 @@ interface Vehicle {
   speed: number;
   line: string;
   tripId: string;
+  headsign?: string;
+  statusDescription?: string;
+  nextStation?: string;
 }
 
 interface ApiResponse {
@@ -207,23 +210,44 @@ const VehicleMarkerItem = memo(function VehicleMarkerItem({
   return (
     <Marker position={[vehicle.lat, vehicle.lon]} icon={icon}>
       <Popup>
-        <div className="text-sm min-w-[150px] p-1">
-          <div className="font-bold text-base text-gray-900 flex items-center gap-1.5">
-            {metro ? (
-              <TrainTrack className="w-4 h-4 text-rose-600" />
-            ) : tram ? (
-              <Tram className="w-4 h-4 text-red-600" />
-            ) : (
-              <Bus className="w-4 h-4 text-blue-600" />
+        <div className="text-sm min-w-[170px] p-1 font-sans">
+          <div className="font-bold text-base text-gray-900 flex items-center justify-between gap-1.5">
+            <div className="flex items-center gap-1.5">
+              {metro ? (
+                <TrainTrack className="w-4 h-4 text-rose-600" />
+              ) : tram ? (
+                <Tram className="w-4 h-4 text-red-600" />
+              ) : (
+                <Bus className="w-4 h-4 text-blue-600" />
+              )}
+              <span>{metro ? "Metro M1" : `Linea ${vehicle.line}`}</span>
+            </div>
+            {metro && (
+              <span className="text-[10px] font-black uppercase tracking-wider bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded">
+                VAL 208
+              </span>
             )}
-            <span>{metro ? "Metro M1" : `Linea ${vehicle.line}`}</span>
           </div>
-          <div className="flex items-center justify-between text-xs text-gray-500 mt-1.5 pt-1.5 border-t border-gray-100">
-            <span>{metro ? "Metropolitana" : tram ? "Tramvia" : "Autobus"}</span>
+
+          {vehicle.headsign && (
+            <div className="text-xs font-semibold text-gray-700 mt-1 flex items-center gap-1">
+              <span className="text-gray-400">Direzione:</span>
+              <span className="truncate">{vehicle.headsign}</span>
+            </div>
+          )}
+
+          {vehicle.statusDescription && (
+            <div className="text-[11px] font-medium text-emerald-700 bg-emerald-50 px-2 py-1 rounded-lg mt-1.5 border border-emerald-100/80">
+              ● {vehicle.statusDescription}
+            </div>
+          )}
+
+          <div className="flex items-center justify-between text-xs text-gray-500 mt-2 pt-1.5 border-t border-gray-100">
+            <span>{metro ? "Metropolitana" : tram ? "Rete Tramviaria" : "Autobus GTT"}</span>
             {vehicle.speed > 0 ? (
               <span className="font-bold text-blue-600">{vehicle.speed} km/h</span>
             ) : (
-              <span className="text-gray-400">Fermo</span>
+              <span className="text-amber-600 font-bold">In fermata</span>
             )}
           </div>
         </div>
@@ -527,14 +551,20 @@ function UnifiedFilterPanel({
                 {/* Metropolitana Section */}
                 {isMetroMatching && (
                   <>
-                    <div className="text-[10px] font-bold text-rose-600 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-                      <TrainTrack className="w-3.5 h-3.5" />
-                      <span>Metropolitana</span>
+                    <div className="text-[10px] font-bold text-rose-600 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <TrainTrack className="w-3.5 h-3.5" />
+                        <span>Metropolitana di Torino</span>
+                      </div>
+                      <span className="text-[10px] font-bold text-emerald-600 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        VAL 208 Live
+                      </span>
                     </div>
                     <div className="flex flex-wrap gap-1.5 mb-3">
                       <button
                         onClick={() => onToggleLine("M1")}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center justify-between gap-3 ${
                           selectedLines.has("M1")
                             ? "bg-rose-600 text-white shadow-md scale-105"
                             : isFiltering
@@ -542,8 +572,21 @@ function UnifiedFilterPanel({
                             : "bg-rose-50 text-rose-900 border border-rose-200 hover:bg-rose-100"
                         }`}
                       >
-                        <TrainTrack className="w-3.5 h-3.5" />
-                        <span>M1 Fermi ↔ Bengasi</span>
+                        <div className="flex items-center gap-1.5">
+                          <TrainTrack className="w-3.5 h-3.5" />
+                          <span>M1 Fermi ↔ Bengasi</span>
+                        </div>
+                        <span
+                          className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
+                            selectedLines.has("M1")
+                              ? "bg-white/20 text-white"
+                              : "bg-rose-200/70 text-rose-900"
+                          }`}
+                        >
+                          {selectedLines.has("M1")
+                            ? `${filteredCount} treni live`
+                            : "Live"}
+                        </span>
                       </button>
                     </div>
                   </>
@@ -968,8 +1011,26 @@ export default function BusMap() {
 
   const filteredVehicles = useMemo(() => {
     if (selectedLines.size === 0) return vehicles;
-    return vehicles.filter((v) => selectedLines.has(v.line));
-  }, [vehicles, selectedLines]);
+    let list = vehicles.filter((v) => selectedLines.has(v.line));
+    if (selectedLines.size === 1 && selectedDirection !== null) {
+      if (selectedDirection === "0") {
+        list = list.filter(
+          (v) =>
+            !v.headsign ||
+            v.headsign.toUpperCase().includes("FERMI") ||
+            v.tripId.includes("DIR0")
+        );
+      } else if (selectedDirection === "1") {
+        list = list.filter(
+          (v) =>
+            !v.headsign ||
+            v.headsign.toUpperCase().includes("BENGASI") ||
+            v.tripId.includes("DIR1")
+        );
+      }
+    }
+    return list;
+  }, [vehicles, selectedLines, selectedDirection]);
 
   // High-performance viewport culling: renders only vehicles in view (+ 25% edge margin)
   const visibleVehicles = useMemo(() => {
