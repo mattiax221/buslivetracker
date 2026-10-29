@@ -1,5 +1,5 @@
 // Google Maps-Style Transit Trip Planner for Turin
-// Multi-modal: Walking + Bus + Tram + Metro M1 with live GTFS-RT vehicle integration
+// Multi-modal: Walking + Bus + Tram + Metro M1 with live GTFS-RT vehicle integration & Google Maps link
 
 export interface TripPoint {
   lat: number;
@@ -59,6 +59,34 @@ export interface TransitNetworkData {
   metroStations: { code: string; name: string; lat: number; lon: number }[];
 }
 
+// Generate universal Google Maps Transit Directions URL (opens native app on Android/iOS)
+export function getGoogleMapsTransitUrl(
+  origin?: { lat?: number; lon?: number; name?: string } | null,
+  destination?: { lat?: number; lon?: number; name?: string } | null
+): string {
+  const params = new URLSearchParams();
+  params.set("api", "1");
+  params.set("travelmode", "transit");
+
+  if (origin && origin.lat && origin.lon) {
+    params.set("origin", `${origin.lat.toFixed(6)},${origin.lon.toFixed(6)}`);
+  } else if (origin && origin.name) {
+    const cleanO = origin.name.replace(/^[📍\s]+/, "").trim();
+    params.set("origin", `${cleanO}, Torino`);
+  }
+
+  if (destination && destination.lat && destination.lon && destination.name && !destination.name.includes("#")) {
+    params.set("destination", `${destination.name}, Torino`);
+  } else if (destination && destination.lat && destination.lon) {
+    params.set("destination", `${destination.lat.toFixed(6)},${destination.lon.toFixed(6)}`);
+  } else if (destination && destination.name) {
+    const cleanD = destination.name.replace(/^[📍\s]+/, "").trim();
+    params.set("destination", `${cleanD}, Torino`);
+  }
+
+  return `https://www.google.com/maps/dir/?${params.toString()}`;
+}
+
 function getDistanceMeters(
   lat1: number,
   lon1: number,
@@ -95,6 +123,10 @@ function getLineMode(line: string): "METRO" | "TRAM" | "BUS" {
   return "BUS";
 }
 
+function cleanCode(code: string): string {
+  return (code || "").replace(/"/g, "").trim();
+}
+
 export function planTrip(
   origin: TripPoint,
   destination: TripPoint,
@@ -110,18 +142,20 @@ export function planTrip(
   // Create stop map for quick coordinate and name lookup
   const stopMap = new Map<string, StopItem>();
   for (const s of allStops) {
-    stopMap.set(s.c, s);
+    const c = cleanCode(s.c);
+    stopMap.set(c, { ...s, c });
   }
   // Also index metro stations
   for (const m of network.metroStations) {
-    stopMap.set(m.code, { c: m.code, n: m.name, lat: m.lat, lon: m.lon });
+    const c = cleanCode(m.code);
+    stopMap.set(c, { c, n: m.name, lat: m.lat, lon: m.lon });
   }
 
-  // 1. Direct Walking Option
+  // 1. Direct Walking Option (if close enough <= 1200m)
   const walkSpeedMPerMin = 75; // 4.5 km/h
   const totalWalkMin = Math.max(1, Math.round(directDistance / walkSpeedMPerMin));
 
-  if (directDistance <= 1600) {
+  if (directDistance <= 1200) {
     const arrDate = new Date(now.getTime() + totalWalkMin * 60000);
     itineraries.push({
       id: "walk-direct",
@@ -148,36 +182,42 @@ export function planTrip(
     });
   }
 
-  // Find candidate origin stops within 650m
-  const originCandidates = allStops
-    .concat(network.metroStations.map((m) => ({ c: m.code, n: m.name, lat: m.lat, lon: m.lon })))
+  // Candidate origin and destination stops within walking reach (up to 850m)
+  const allAvailableStops: StopItem[] = allStops
+    .concat(network.metroStations.map((m) => ({ c: cleanCode(m.code), n: m.name, lat: m.lat, lon: m.lon })));
+
+  const originCandidates = allAvailableStops
     .map((s) => ({
       stop: s,
       dist: getDistanceMeters(origin.lat, origin.lon, s.lat, s.lon),
     }))
-    .filter((s) => s.dist <= 650)
+    .filter((s) => s.dist <= 850)
     .sort((a, b) => a.dist - b.dist)
-    .slice(0, 16);
+    .slice(0, 30);
 
-  // Find candidate destination stops within 650m
-  const destCandidates = allStops
-    .concat(network.metroStations.map((m) => ({ c: m.code, n: m.name, lat: m.lat, lon: m.lon })))
+  const destCandidates = allAvailableStops
     .map((s) => ({
       stop: s,
       dist: getDistanceMeters(destination.lat, destination.lon, s.lat, s.lon),
     }))
-    .filter((s) => s.dist <= 650)
+    .filter((s) => s.dist <= 850)
     .sort((a, b) => a.dist - b.dist)
-    .slice(0, 16);
+    .slice(0, 30);
+
+  // Helper to safely get lines at a stop
+  const getStopLines = (code: string): string[] => {
+    const c = cleanCode(code);
+    return network.stopLines[c] || network.stopLines[`"${c}"`] || [];
+  };
 
   // 2. Direct Routes (Single Line / Metro)
   const seenDirectLines = new Set<string>();
 
   for (const oCandidate of originCandidates) {
-    const oLines = network.stopLines[oCandidate.stop.c] || [];
+    const oLines = getStopLines(oCandidate.stop.c);
     for (const dCandidate of destCandidates) {
-      if (oCandidate.stop.c === dCandidate.stop.c) continue;
-      const dLines = network.stopLines[dCandidate.stop.c] || [];
+      if (cleanCode(oCandidate.stop.c) === cleanCode(dCandidate.stop.c)) continue;
+      const dLines = getStopLines(dCandidate.stop.c);
 
       // Intersect lines
       const commonLines = oLines.filter((l) => dLines.includes(l));
@@ -189,10 +229,11 @@ export function planTrip(
         let oIdx = -1;
         let dIdx = -1;
 
-        for (const [key, pat] of Object.entries(network.patterns)) {
+        for (const pat of Object.values(network.patterns)) {
           if (pat.line === line) {
-            const idx1 = pat.stops.indexOf(oCandidate.stop.c);
-            const idx2 = pat.stops.indexOf(dCandidate.stop.c);
+            const cleanStops = pat.stops.map(cleanCode);
+            const idx1 = cleanStops.indexOf(cleanCode(oCandidate.stop.c));
+            const idx2 = cleanStops.indexOf(cleanCode(dCandidate.stop.c));
             if (idx1 !== -1 && idx2 !== -1 && idx2 > idx1) {
               bestPattern = pat;
               oIdx = idx1;
@@ -242,7 +283,7 @@ export function planTrip(
           // Get intermediate stops
           const intermediate: { code: string; name: string }[] = [];
           for (let i = oIdx; i <= dIdx; i++) {
-            const sCode = bestPattern.stops[i];
+            const sCode = cleanCode(bestPattern.stops[i]);
             const sObj = stopMap.get(sCode);
             if (sObj) {
               intermediate.push({ code: sCode, name: sObj.n });
@@ -312,7 +353,7 @@ export function planTrip(
     }
   }
 
-  // 3. 1-Transfer Routes (e.g. Line A -> Metro M1, or Line A -> Line B at major hubs like Porta Nuova, Porta Susa, Vinzaglio)
+  // 3. 1-Transfer Routes (e.g. Line A -> Metro M1, or Line A -> Line B at major hubs)
   if (itineraries.filter((it) => it.transfersCount === 0 && it.legs.length > 1).length < 3) {
     const HUB_STOP_CODES = [
       "METRO_PORTA_NUOVA",
@@ -320,27 +361,38 @@ export function planTrip(
       "METRO_VINZAGLIO",
       "METRO_BERNINI",
       "METRO_XVIII_DICEMBRE",
+      "METRO_CARDUCCI_MOLINETTE",
+      "METRO_LINGOTTO",
+      "METRO_FERMI",
+      "METRO_BENGASI",
       "39",   // PORTA NUOVA FS
+      "40",   // PORTA NUOVA FS
       "27",   // PORTA SUSA FS
       "1298", // CASTELLO
+      "252",  // PORTA NUOVA
+      "253",  // PORTA NUOVA
       "254",  // VITTORIO EMANUELE
+      "670",  // POLITECNICO
+      "376",  // POLITECNICO
+      "199",  // SABOTINO
     ];
 
-    for (const hubCode of HUB_STOP_CODES) {
+    for (const rawHubCode of HUB_STOP_CODES) {
+      const hubCode = cleanCode(rawHubCode);
       const hubStop = stopMap.get(hubCode);
       if (!hubStop) continue;
 
-      const hubLines = network.stopLines[hubCode] || [];
+      const hubLines = getStopLines(hubCode);
 
       // Find first leg from origin to hub
-      for (const oCand of originCandidates.slice(0, 6)) {
-        const oLines = (network.stopLines[oCand.stop.c] || []).filter((l) => hubLines.includes(l));
+      for (const oCand of originCandidates.slice(0, 10)) {
+        const oLines = getStopLines(oCand.stop.c).filter((l) => hubLines.includes(l));
         if (oLines.length === 0) continue;
         const line1 = oLines[0];
 
         // Find second leg from hub to destination
-        for (const dCand of destCandidates.slice(0, 6)) {
-          const dLines = (network.stopLines[dCand.stop.c] || []).filter(
+        for (const dCand of destCandidates.slice(0, 10)) {
+          const dLines = getStopLines(dCand.stop.c).filter(
             (l) => hubLines.includes(l) && l !== line1
           );
           if (dLines.length === 0) continue;
@@ -459,4 +511,3 @@ export function planTrip(
 
   return itineraries.slice(0, 5);
 }
-
