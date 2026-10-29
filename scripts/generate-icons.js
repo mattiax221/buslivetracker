@@ -1,0 +1,151 @@
+const fs = require("fs");
+const path = require("path");
+const sharp = require("sharp");
+
+const svgContent = `
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1e3a8a" />
+      <stop offset="60%" stop-color="#1e1b4b" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+
+    <!-- Mole Antonelliana Glow -->
+    <linearGradient id="moleGrad" x1="256" y1="80" x2="256" y2="340" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#fbbf24" stop-opacity="0.9" />
+      <stop offset="100%" stop-color="#f59e0b" stop-opacity="0.25" />
+    </linearGradient>
+
+    <!-- Bus Front Gradient -->
+    <linearGradient id="busGrad" x1="160" y1="230" x2="352" y2="430" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="100%" stop-color="#f1f5f9" />
+    </linearGradient>
+
+    <!-- Emerald GPS Accent -->
+    <linearGradient id="radarGrad" x1="390" y1="80" x2="470" y2="160" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#34d399" />
+      <stop offset="100%" stop-color="#059669" />
+    </linearGradient>
+
+    <!-- Glass Windshield -->
+    <linearGradient id="glassGrad" x1="200" y1="270" x2="312" y2="340" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="100%" stop-color="#1e293b" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background Card with rounded corners -->
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad)" />
+
+  <!-- Subtle grid lines resembling transit network -->
+  <path d="M 0 180 Q 256 220 512 180" stroke="rgba(255,255,255,0.06)" stroke-width="4" fill="none" />
+  <path d="M 0 340 Q 256 310 512 350" stroke="rgba(255,255,255,0.05)" stroke-width="4" fill="none" />
+
+  <!-- 1. The Mole Antonelliana Silhouette in background -->
+  <g opacity="0.85">
+    <!-- Spire top needle -->
+    <line x1="256" y1="65" x2="256" y2="135" stroke="url(#moleGrad)" stroke-width="5" stroke-linecap="round" />
+    <circle cx="256" cy="62" r="4.5" fill="#fef08a" />
+    <!-- Spire body -->
+    <polygon points="256,130 250,185 262,185" fill="url(#moleGrad)" />
+    <!-- Temple lantern -->
+    <rect x="245" y="185" width="22" height="20" rx="3" fill="url(#moleGrad)" />
+    <polygon points="256,170 242,185 270,185" fill="url(#moleGrad)" />
+    <!-- Upper colonnade / dome top -->
+    <polygon points="234,225 256,198 278,225" fill="url(#moleGrad)" />
+    <!-- Main vault dome curve -->
+    <path d="M 215 310 C 220 255 240 225 256 225 C 272 225 292 255 297 310 Z" fill="url(#moleGrad)" />
+  </g>
+
+  <!-- 2. Modern Transit Vehicle (Bus / Tram Front) -->
+  <!-- Shadow -->
+  <ellipse cx="256" cy="445" rx="125" ry="16" fill="rgba(0,0,0,0.4)" />
+
+  <!-- Main Body Shell -->
+  <rect x="156" y="240" width="200" height="190" rx="42" fill="url(#busGrad)" stroke="#cbd5e1" stroke-width="3" />
+
+  <!-- Roof Air/Pantograph Accent -->
+  <rect x="206" y="228" width="100" height="15" rx="6" fill="#3b82f6" />
+  <circle cx="230" cy="235" r="3" fill="#ffffff" />
+  <circle cx="282" cy="235" r="3" fill="#ffffff" />
+
+  <!-- Destination LED Display "TORINO" -->
+  <rect x="190" y="252" width="132" height="22" rx="6" fill="#0f172a" />
+  <text x="256" y="268" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-weight="900" font-size="12" fill="#fbbf24" letter-spacing="3">GTT LIVE</text>
+
+  <!-- Windshield -->
+  <path d="M 172 284 C 172 284 210 280 256 280 C 302 280 340 284 340 284 L 334 350 C 334 350 295 354 256 354 C 217 354 178 350 178 350 Z" fill="url(#glassGrad)" stroke="#334155" stroke-width="2" />
+  
+  <!-- Windshield reflections -->
+  <path d="M 186 290 L 210 290 L 195 344 L 182 344 Z" fill="rgba(255,255,255,0.18)" />
+
+  <!-- Lower Grill / GTT Blue Accent Bar -->
+  <rect x="186" y="372" width="140" height="22" rx="8" fill="#2563eb" />
+  <!-- Brand emblem -->
+  <circle cx="256" cy="383" r="6" fill="#ffffff" />
+  <circle cx="256" cy="383" r="3" fill="#2563eb" />
+
+  <!-- Dual LED Headlights -->
+  <!-- Left Headlight -->
+  <rect x="170" y="375" width="16" height="15" rx="5" fill="#fef08a" />
+  <circle cx="178" cy="382" r="3" fill="#ffffff" />
+  <!-- Right Headlight -->
+  <rect x="326" y="375" width="16" height="15" rx="5" fill="#fef08a" />
+  <circle cx="334" cy="382" r="3" fill="#ffffff" />
+
+  <!-- Bumper & License plate -->
+  <rect x="226" y="405" width="60" height="14" rx="4" fill="#ffffff" stroke="#94a3b8" stroke-width="1.5" />
+  <text x="256" y="416" text-anchor="middle" font-family="monospace" font-weight="bold" font-size="9" fill="#0f172a">TO • LIVE</text>
+
+  <!-- 3. GPS Satellite Ping in Top-Right Corner -->
+  <g transform="translate(415, 95)">
+    <!-- Radar waves -->
+    <circle cx="0" cy="0" r="46" fill="none" stroke="#10b981" stroke-width="3" stroke-opacity="0.3" stroke-dasharray="6 4" />
+    <circle cx="0" cy="0" r="30" fill="none" stroke="#10b981" stroke-width="3.5" stroke-opacity="0.6" />
+    <circle cx="0" cy="0" r="16" fill="url(#radarGrad)" />
+    <circle cx="0" cy="0" r="7" fill="#ffffff" />
+  </g>
+</svg>
+`;
+
+async function run() {
+  const publicDir = path.resolve(__dirname, "../public");
+
+  // Save SVG
+  const svgPath = path.join(publicDir, "icon.svg");
+  fs.writeFileSync(svgPath, svgContent.trim());
+  console.log("Saved icon.svg");
+
+  // Generate PNG 512x512
+  await sharp(Buffer.from(svgContent))
+    .resize(512, 512)
+    .png()
+    .toFile(path.join(publicDir, "icon-512.png"));
+  console.log("Generated icon-512.png (512x512)");
+
+  // Generate PNG 192x192
+  await sharp(Buffer.from(svgContent))
+    .resize(192, 192)
+    .png()
+    .toFile(path.join(publicDir, "icon-192.png"));
+  console.log("Generated icon-192.png (192x192)");
+
+  // Generate Apple Touch Icon 180x180
+  await sharp(Buffer.from(svgContent))
+    .resize(180, 180)
+    .png()
+    .toFile(path.join(publicDir, "apple-touch-icon.png"));
+  console.log("Generated apple-touch-icon.png (180x180)");
+
+  // Generate favicon 64x64
+  await sharp(Buffer.from(svgContent))
+    .resize(64, 64)
+    .png()
+    .toFile(path.join(publicDir, "favicon.png"));
+  console.log("Generated favicon.png (64x64)");
+}
+
+run().catch(console.error);

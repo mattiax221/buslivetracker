@@ -28,11 +28,23 @@ import {
   Clock,
   Info,
   RefreshCw,
+  Star,
+  Bell,
+  TrainTrack,
+  ArrowRight,
 } from "lucide-react";
 import StopsLayer, { StopData } from "./StopsLayer";
 import StopBottomSheet from "./StopBottomSheet";
 import AlertsBottomSheet from "./AlertsBottomSheet";
 import AIAssistantSheet from "./AIAssistantSheet";
+import FavoritesSheet from "./FavoritesSheet";
+import {
+  CommuteAlarm,
+  playTransitChime,
+  triggerVibration,
+  isAlarmActiveNow,
+  sendSystemNotification,
+} from "../lib/alarmEngine";
 
 /* ── Types ── */
 interface Vehicle {
@@ -90,7 +102,13 @@ const TRAM_LINES = new Set([
   "79",
 ]);
 
+function isMetro(line: string): boolean {
+  const clean = line.replace(/\s+/g, "").toUpperCase();
+  return clean === "M1" || clean === "METRO";
+}
+
 function isTram(line: string): boolean {
+  if (isMetro(line)) return false;
   const clean = line.replace(/\s+/g, "").toUpperCase();
   if (TRAM_LINES.has(clean) || TRAM_LINES.has(line)) return true;
   if (/^16(CD|CS)?$/i.test(clean)) return true;
@@ -118,6 +136,7 @@ function getDistanceMeters(
 
 /* ── Line color ── */
 function lineColor(line: string): string {
+  if (isMetro(line)) return "#e11d48"; // Ruby Red for Metro M1
   if (isTram(line)) return "#dc2626"; // Crimson Red for tram
   let hash = 0;
   for (let i = 0; i < line.length; i++) {
@@ -181,7 +200,8 @@ const VehicleMarkerItem = memo(function VehicleMarkerItem({
 }: {
   vehicle: Vehicle;
 }) {
-  const tram = isTram(vehicle.line);
+  const metro = isMetro(vehicle.line);
+  const tram = !metro && isTram(vehicle.line);
   const icon = getVehicleIcon(vehicle.line, vehicle.heading);
 
   return (
@@ -189,15 +209,17 @@ const VehicleMarkerItem = memo(function VehicleMarkerItem({
       <Popup>
         <div className="text-sm min-w-[150px] p-1">
           <div className="font-bold text-base text-gray-900 flex items-center gap-1.5">
-            {tram ? (
+            {metro ? (
+              <TrainTrack className="w-4 h-4 text-rose-600" />
+            ) : tram ? (
               <Tram className="w-4 h-4 text-red-600" />
             ) : (
               <Bus className="w-4 h-4 text-blue-600" />
             )}
-            <span>Linea {vehicle.line}</span>
+            <span>{metro ? "Metro M1" : `Linea ${vehicle.line}`}</span>
           </div>
           <div className="flex items-center justify-between text-xs text-gray-500 mt-1.5 pt-1.5 border-t border-gray-100">
-            <span>{tram ? "Tramvia" : "Autobus"}</span>
+            <span>{metro ? "Metropolitana" : tram ? "Tramvia" : "Autobus"}</span>
             {vehicle.speed > 0 ? (
               <span className="font-bold text-blue-600">{vehicle.speed} km/h</span>
             ) : (
@@ -335,6 +357,13 @@ function UnifiedFilterPanel({
   totalCount,
   hasShape,
   onFitRoute,
+  savedLines,
+  savedStops,
+  onOpenFavorites,
+  onSelectStopByCode,
+  selectedDirection,
+  onSelectDirection,
+  availableDirections,
 }: {
   allLines: string[];
   allStops: StopData[];
@@ -346,6 +375,13 @@ function UnifiedFilterPanel({
   totalCount: number;
   hasShape?: boolean;
   onFitRoute?: () => void;
+  savedLines: string[];
+  savedStops: { code: string; name: string }[];
+  onOpenFavorites: () => void;
+  onSelectStopByCode: (code: string, name?: string) => void;
+  selectedDirection: string | null;
+  onSelectDirection: (dir: string | null) => void;
+  availableDirections: { dir: string; headsign: string }[];
 }) {
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState(false);
@@ -377,6 +413,7 @@ function UnifiedFilterPanel({
   }, [allStops, search]);
 
   const isFiltering = selectedLines.size > 0;
+  const isMetroMatching = !search.trim() || search.trim().toLowerCase().includes("m") || search.trim().toLowerCase().includes("metro");
 
   return (
     <div className="absolute top-12 left-0 right-0 z-[999] pointer-events-none">
@@ -386,7 +423,7 @@ function UnifiedFilterPanel({
             <Search className="w-4 h-4 text-slate-400 shrink-0" />
             <input
               type="text"
-              placeholder="Cerca linea (4, 16CD, 77) o fermata (138, Statuto)..."
+              placeholder="Cerca linea (M1, 4, 16CD) o fermata (138, Statuto)..."
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
@@ -486,7 +523,33 @@ function UnifiedFilterPanel({
                 </button>
               </div>
 
-              <div className="px-3 pb-3 pt-2 max-h-52 overflow-y-auto">
+              <div className="px-3 pb-3 pt-2 max-h-56 overflow-y-auto">
+                {/* Metropolitana Section */}
+                {isMetroMatching && (
+                  <>
+                    <div className="text-[10px] font-bold text-rose-600 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                      <TrainTrack className="w-3.5 h-3.5" />
+                      <span>Metropolitana</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 mb-3">
+                      <button
+                        onClick={() => onToggleLine("M1")}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                          selectedLines.has("M1")
+                            ? "bg-rose-600 text-white shadow-md scale-105"
+                            : isFiltering
+                            ? "bg-gray-100 text-gray-400"
+                            : "bg-rose-50 text-rose-900 border border-rose-200 hover:bg-rose-100"
+                        }`}
+                      >
+                        <TrainTrack className="w-3.5 h-3.5" />
+                        <span>M1 Fermi ↔ Bengasi</span>
+                      </button>
+                    </div>
+                  </>
+                )}
+
+                {/* Tram Section */}
                 <div className="text-[10px] font-bold text-red-600 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
                   <Tram className="w-3.5 h-3.5" />
                   <span>Rete Tramviaria</span>
@@ -513,12 +576,13 @@ function UnifiedFilterPanel({
                   })}
                 </div>
 
+                {/* Autobus Section */}
                 <div className="text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
                   <Bus className="w-3.5 h-3.5" />
                   <span>Linee Autobus</span>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
-                  {matchingLines.filter((l) => !isTram(l)).map((line) => {
+                  {matchingLines.filter((l) => !isTram(l) && !isMetro(l)).map((line) => {
                     const active = selectedLines.has(line);
                     return (
                       <button
@@ -559,36 +623,107 @@ function UnifiedFilterPanel({
         )}
       </div>
 
-      {!expanded && isFiltering && (
-        <div className="mx-3 mt-2 flex items-center gap-1.5 flex-wrap pointer-events-auto">
-          {Array.from(selectedLines)
-            .sort(naturalSort)
-            .map((line) => (
-              <button
-                key={line}
-                onClick={() => onToggleLine(line)}
-                className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold text-white shadow-md active:scale-95 transition-transform"
-                style={{ backgroundColor: lineColor(line) }}
-              >
-                <span>{line}</span>
-                <span className="opacity-80">✕</span>
-              </button>
-            ))}
-          {hasShape && onFitRoute && (
-            <button
-              onClick={onFitRoute}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold text-slate-800 bg-white shadow-md hover:bg-slate-50 transition-all border border-slate-200 active:scale-95"
-              title="Centra la mappa sul tracciato completo della linea"
-            >
-              <span>🛤️ Tracciato</span>
-            </button>
-          )}
+      {/* Quick 1-Click Favorites Row (shown when idle) */}
+      {!expanded && !isFiltering && (savedLines.length > 0 || savedStops.length > 0) && (
+        <div className="mx-3 mt-2 flex items-center gap-1.5 overflow-x-auto pb-1 pointer-events-auto">
           <button
-            onClick={onClearLines}
-            className="px-2.5 py-1 rounded-full text-xs font-bold text-gray-600 bg-white shadow-md active:scale-95 transition-transform"
+            onClick={onOpenFavorites}
+            className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500 text-white shadow-xs shrink-0 active:scale-95 transition-transform"
           >
-            Reset
+            <Star className="w-3 h-3 fill-current" />
+            <span>I tuoi Preferiti</span>
           </button>
+          {savedLines.map((line) => (
+            <button
+              key={`fav-line-${line}`}
+              onClick={() => onToggleLine(line)}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-white text-gray-800 shadow-xs border border-gray-200 shrink-0 hover:bg-gray-50 active:scale-95 transition-all"
+            >
+              <span
+                className="w-2 h-2 rounded-full"
+                style={{ backgroundColor: lineColor(line) }}
+              />
+              <span>{isMetro(line) ? "Metro M1" : `Linea ${line}`}</span>
+            </button>
+          ))}
+          {savedStops.map((st) => (
+            <button
+              key={`fav-stop-${st.code}`}
+              onClick={() => onSelectStopByCode(st.code, st.name)}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-white text-gray-800 shadow-xs border border-gray-200 shrink-0 hover:bg-gray-50 active:scale-95 transition-all"
+            >
+              <MapPin className="w-3 h-3 text-blue-600" />
+              <span className="truncate max-w-[110px]">{st.name}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Active Line Filter Badges & Direction Switcher */}
+      {!expanded && isFiltering && (
+        <div className="mx-3 mt-2 flex flex-col gap-1.5 pointer-events-auto">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {Array.from(selectedLines)
+              .sort(naturalSort)
+              .map((line) => (
+                <button
+                  key={line}
+                  onClick={() => onToggleLine(line)}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold text-white shadow-md active:scale-95 transition-transform"
+                  style={{ backgroundColor: lineColor(line) }}
+                >
+                  <span>{isMetro(line) ? "Metro M1" : line}</span>
+                  <span className="opacity-80">✕</span>
+                </button>
+              ))}
+            {hasShape && onFitRoute && (
+              <button
+                onClick={onFitRoute}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold text-slate-800 bg-white shadow-md hover:bg-slate-50 transition-all border border-slate-200 active:scale-95"
+                title="Centra la mappa sul tracciato completo della linea"
+              >
+                <span>🛤️ Tracciato</span>
+              </button>
+            )}
+            <button
+              onClick={onClearLines}
+              className="px-2.5 py-1 rounded-full text-xs font-bold text-gray-600 bg-white shadow-md active:scale-95 transition-transform"
+            >
+              Reset
+            </button>
+          </div>
+
+          {/* Direction toggle (Andata vs Ritorno) when 1 line is selected */}
+          {availableDirections.length > 1 && (
+            <div className="flex items-center gap-1 bg-white/95 backdrop-blur-md p-1 rounded-2xl shadow-md border border-gray-200 overflow-x-auto text-[11px] w-fit">
+              <button
+                onClick={() => onSelectDirection(null)}
+                className={`px-2.5 py-1 rounded-xl font-bold whitespace-nowrap transition-colors ${
+                  selectedDirection === null
+                    ? "bg-slate-900 text-white"
+                    : "text-gray-600 hover:bg-gray-100"
+                }`}
+              >
+                Tutti i sensi
+              </button>
+              {availableDirections.map((d) => (
+                <button
+                  key={`dir-${d.dir}`}
+                  onClick={() => onSelectDirection(d.dir)}
+                  className={`px-2.5 py-1 rounded-xl font-bold whitespace-nowrap transition-colors flex items-center gap-1 ${
+                    selectedDirection === d.dir
+                      ? "bg-blue-600 text-white shadow-xs"
+                      : "text-gray-600 hover:bg-gray-100"
+                  }`}
+                >
+                  <ArrowRight className="w-3 h-3" />
+                  <span className="truncate max-w-[130px]">
+                    {d.headsign || (d.dir === "0" ? "Andata" : "Ritorno")}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -620,6 +755,19 @@ export default function BusMap() {
   const [alertsCount, setAlertsCount] = useState(0);
   const [showLegend, setShowLegend] = useState(false);
 
+  // Favorites & Alarms State
+  const [isFavoritesOpen, setIsFavoritesOpen] = useState(false);
+  const [savedLines, setSavedLines] = useState<string[]>([]);
+  const [savedStops, setSavedStops] = useState<{ code: string; name: string }[]>([]);
+  const [alarms, setAlarms] = useState<CommuteAlarm[]>([]);
+  const [selectedDirection, setSelectedDirection] = useState<string | null>(null);
+  const [activeAlarmToast, setActiveAlarmToast] = useState<{
+    line: string;
+    stopName: string;
+    minutes: number;
+  } | null>(null);
+  const lastTriggeredRef = useRef<Record<string, number>>({});
+
   // Closest stop near user GPS
   const [nearestStop, setNearestStop] = useState<{ stop: StopInfo; distance: number } | null>(null);
   const [mapStyle, setMapStyle] = useState<"clean" | "minimal" | "osm">("clean");
@@ -634,6 +782,128 @@ export default function BusMap() {
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const mapRef = useRef<L.Map | null>(null);
+
+  // Load localStorage favorites & alarms
+  useEffect(() => {
+    try {
+      const l = localStorage.getItem("gtt_fav_lines");
+      if (l) setSavedLines(JSON.parse(l));
+      const s = localStorage.getItem("gtt_fav_stops");
+      if (s) setSavedStops(JSON.parse(s));
+      const a = localStorage.getItem("gtt_commute_alarms");
+      if (a) setAlarms(JSON.parse(a));
+    } catch (e) {
+      console.error("Error reading localStorage favorites:", e);
+    }
+  }, []);
+
+  // Background Commuter Alarm Runner (checks every 25s)
+  useEffect(() => {
+    if (alarms.length === 0) return;
+
+    const checkAlarms = async () => {
+      const activeAlarms = alarms.filter((a) => a.enabled && isAlarmActiveNow(a));
+      if (activeAlarms.length === 0) return;
+
+      const now = Date.now();
+      for (const alarm of activeAlarms) {
+        // Cooldown: 4 minutes
+        const last = lastTriggeredRef.current[alarm.id] || 0;
+        if (now - last < 4 * 60 * 1000) continue;
+
+        try {
+          const res = await fetch(`/api/stops/arrivals?stop=${encodeURIComponent(alarm.stopCode)}`);
+          if (!res.ok) continue;
+          const data = await res.json();
+          const arrivals = data.arrivals || [];
+
+          const match = arrivals.find(
+            (arr: any) =>
+              arr.line.toUpperCase() === alarm.line.toUpperCase() &&
+              arr.minutesRemaining <= alarm.thresholdMinutes
+          );
+
+          if (match) {
+            lastTriggeredRef.current[alarm.id] = now;
+            playTransitChime();
+            triggerVibration();
+            sendSystemNotification(
+              `Linea ${alarm.line} in arrivo!`,
+              `Tra ${match.minutesRemaining} min alla fermata ${alarm.stopName || alarm.stopCode}`
+            );
+            setActiveAlarmToast({
+              line: alarm.line,
+              stopName: alarm.stopName || `Fermata #${alarm.stopCode}`,
+              minutes: match.minutesRemaining,
+            });
+            break;
+          }
+        } catch (e) {
+          console.error("Alarm check error:", e);
+        }
+      }
+    };
+
+    checkAlarms();
+    const interval = setInterval(checkAlarms, 25000);
+    return () => clearInterval(interval);
+  }, [alarms]);
+
+  // Favorites & Alarms handlers
+  const handleToggleLineFavorite = useCallback((line: string) => {
+    setSavedLines((prev) => {
+      const next = prev.includes(line) ? prev.filter((l) => l !== line) : [...prev, line];
+      try {
+        localStorage.setItem("gtt_fav_lines", JSON.stringify(next));
+      } catch (e) {}
+      return next;
+    });
+  }, []);
+
+  const handleToggleStopFavorite = useCallback((stop: { code: string; name: string }) => {
+    setSavedStops((prev) => {
+      const exists = prev.some((s) => s.code === stop.code);
+      const next = exists ? prev.filter((s) => s.code !== stop.code) : [...prev, stop];
+      try {
+        localStorage.setItem("gtt_fav_stops", JSON.stringify(next));
+      } catch (e) {}
+      return next;
+    });
+  }, []);
+
+  const handleAddAlarm = useCallback((newAlarm: Omit<CommuteAlarm, "id">) => {
+    const alarm: CommuteAlarm = {
+      ...newAlarm,
+      id: Math.random().toString(36).substring(2, 9),
+    };
+    setAlarms((prev) => {
+      const next = [...prev, alarm];
+      try {
+        localStorage.setItem("gtt_commute_alarms", JSON.stringify(next));
+      } catch (e) {}
+      return next;
+    });
+  }, []);
+
+  const handleToggleAlarm = useCallback((id: string) => {
+    setAlarms((prev) => {
+      const next = prev.map((a) => (a.id === id ? { ...a, enabled: !a.enabled } : a));
+      try {
+        localStorage.setItem("gtt_commute_alarms", JSON.stringify(next));
+      } catch (e) {}
+      return next;
+    });
+  }, []);
+
+  const handleDeleteAlarm = useCallback((id: string) => {
+    setAlarms((prev) => {
+      const next = prev.filter((a) => a.id !== id);
+      try {
+        localStorage.setItem("gtt_commute_alarms", JSON.stringify(next));
+      } catch (e) {}
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     fetch("/stops.json")
@@ -712,6 +982,7 @@ export default function BusMap() {
   }, [vehicles, selectedLines, mapBounds, filteredVehicles]);
 
   const handleToggleLine = useCallback((line: string) => {
+    setSelectedDirection(null);
     setSelectedLines((prev) => {
       const next = new Set(prev);
       if (next.has(line)) next.delete(line);
@@ -720,7 +991,10 @@ export default function BusMap() {
     });
   }, []);
 
-  const handleClearLines = useCallback(() => setSelectedLines(new Set()), []);
+  const handleClearLines = useCallback(() => {
+    setSelectedDirection(null);
+    setSelectedLines(new Set());
+  }, []);
 
   // Auto-fit route bounds when a single line is selected
   useEffect(() => {
@@ -755,22 +1029,58 @@ export default function BusMap() {
     }
   }, [selectedLines, lineShapes]);
 
+  const availableDirections = useMemo(() => {
+    if (selectedLines.size !== 1) return [];
+    const line = Array.from(selectedLines)[0];
+    const shapes = lineShapes[line] || [];
+    return shapes.map((s) => ({ dir: s.dir, headsign: s.headsign }));
+  }, [selectedLines, lineShapes]);
+
   const activeShapes = useMemo(() => {
     if (selectedLines.size === 0 || selectedLines.size > 4) return [];
     const result: { line: string; dir: string; headsign: string; pts: [number, number][] }[] = [];
     selectedLines.forEach((line) => {
       const shapes = lineShapes[line] || [];
       shapes.forEach((s) => {
-        result.push({ line, dir: s.dir, headsign: s.headsign, pts: s.pts });
+        if (selectedLines.size === 1 && selectedDirection !== null) {
+          if (s.dir === selectedDirection) {
+            result.push({ line, dir: s.dir, headsign: s.headsign, pts: s.pts });
+          }
+        } else {
+          result.push({ line, dir: s.dir, headsign: s.headsign, pts: s.pts });
+        }
       });
     });
     return result;
-  }, [selectedLines, lineShapes]);
+  }, [selectedLines, lineShapes, selectedDirection]);
 
   const handleSelectStop = useCallback((stop: StopInfo) => {
     setSelectedStop(stop);
     setFlyToCoords([stop.lat, stop.lon]);
   }, []);
+
+  const handleSelectStopByCode = useCallback(
+    (code: string, fallbackName?: string) => {
+      const found = allStops.find((s) => s.c === code);
+      if (found) {
+        handleSelectStop({
+          code: found.c,
+          name: found.n,
+          desc: found.d,
+          lat: found.lat,
+          lon: found.lon,
+        });
+      } else {
+        handleSelectStop({
+          code,
+          name: fallbackName || `Fermata #${code}`,
+          lat: TORINO_CENTER[0],
+          lon: TORINO_CENTER[1],
+        });
+      }
+    },
+    [allStops, handleSelectStop]
+  );
 
   const handleLocationFound = useCallback(
     (lat: number, lon: number) => {
@@ -826,6 +1136,21 @@ export default function BusMap() {
             <span className="hidden sm:inline">Assistente</span>
           </button>
 
+          {/* Favorites & Commute Alarms button */}
+          <button
+            onClick={() => setIsFavoritesOpen(true)}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 hover:bg-amber-100 border border-amber-200/80 text-amber-900 text-xs font-bold active:scale-95 transition-all shadow-2xs"
+            title="Linee e fermate preferite, sveglie pendolare"
+          >
+            <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+            <span className="text-[11px] hidden sm:inline">Preferiti</span>
+            {savedLines.length + savedStops.length + alarms.filter((a) => a.enabled).length > 0 && (
+              <span className="bg-amber-500 text-white text-[10px] px-1.5 py-0.2 rounded-full font-black">
+                {savedLines.length + savedStops.length + alarms.filter((a) => a.enabled).length}
+              </span>
+            )}
+          </button>
+
           {/* Alerts button */}
           <button
             onClick={() => setIsAlertsOpen(true)}
@@ -846,6 +1171,34 @@ export default function BusMap() {
         </div>
       </div>
 
+      {/* Alarm Alert Toast */}
+      {activeAlarmToast && (
+        <div className="absolute top-14 left-3 right-3 z-[1100] bg-rose-600 text-white rounded-2xl p-3 shadow-2xl flex items-center justify-between gap-3 animate-in slide-in-from-top duration-300">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center shrink-0 animate-bounce">
+              <Bell className="w-4 h-4 text-white" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-[10px] font-black tracking-wider uppercase text-rose-200">
+                SVEGLIA PENDOLARE • GTT LIVE
+              </div>
+              <div className="text-xs font-bold truncate">
+                Linea {activeAlarmToast.line} in arrivo tra {activeAlarmToast.minutes} min
+              </div>
+              <div className="text-[11px] text-rose-100 truncate">
+                {activeAlarmToast.stopName}
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={() => setActiveAlarmToast(null)}
+            className="px-2.5 py-1 rounded-lg bg-white/20 hover:bg-white/30 text-white shrink-0 font-bold text-xs"
+          >
+            Ricevuto
+          </button>
+        </div>
+      )}
+
       {/* Unified Search & Filter panel */}
       <UnifiedFilterPanel
         allLines={allLines}
@@ -858,6 +1211,13 @@ export default function BusMap() {
         totalCount={count}
         hasShape={selectedLines.size === 1 && !!lineShapes[Array.from(selectedLines)[0]]}
         onFitRoute={handleFitCurrentRoute}
+        savedLines={savedLines}
+        savedStops={savedStops}
+        onOpenFavorites={() => setIsFavoritesOpen(true)}
+        onSelectStopByCode={handleSelectStopByCode}
+        selectedDirection={selectedDirection}
+        onSelectDirection={setSelectedDirection}
+        availableDirections={availableDirections}
       />
 
       {/* Map */}
@@ -1076,6 +1436,8 @@ export default function BusMap() {
           setSelectedStop(null);
           handleToggleLine(line);
         }}
+        isFavorite={selectedStop ? savedStops.some((s) => s.code === selectedStop.code) : false}
+        onToggleFavorite={handleToggleStopFavorite}
       />
 
       {/* Service Alerts Bottom Sheet */}
@@ -1094,6 +1456,26 @@ export default function BusMap() {
         onClose={() => setIsAIOpen(false)}
         onSelectLine={(line) => {
           handleToggleLine(line);
+        }}
+      />
+
+      {/* Favorites & Commute Alarms Sheet */}
+      <FavoritesSheet
+        isOpen={isFavoritesOpen}
+        onClose={() => setIsFavoritesOpen(false)}
+        savedLines={savedLines}
+        savedStops={savedStops}
+        alarms={alarms}
+        onToggleLineFavorite={handleToggleLineFavorite}
+        onToggleStopFavorite={handleToggleStopFavorite}
+        onAddAlarm={handleAddAlarm}
+        onToggleAlarm={handleToggleAlarm}
+        onDeleteAlarm={handleDeleteAlarm}
+        onSelectLine={(line) => {
+          handleToggleLine(line);
+        }}
+        onSelectStop={(code) => {
+          handleSelectStopByCode(code);
         }}
       />
     </div>

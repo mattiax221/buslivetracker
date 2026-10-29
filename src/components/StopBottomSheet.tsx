@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { X, RefreshCw, Clock, Radio, Bus, TramFront as Tram } from "lucide-react";
+import { X, RefreshCw, Clock, Radio, Bus, TramFront as Tram, Star } from "lucide-react";
 
 interface StopArrival {
   line: string;
@@ -23,6 +23,8 @@ interface StopBottomSheetProps {
   stop: StopInfo | null;
   onClose: () => void;
   onSelectLine?: (line: string) => void;
+  isFavorite?: boolean;
+  onToggleFavorite?: (stop: { code: string; name: string }) => void;
 }
 
 function isTramLine(line: string): boolean {
@@ -34,6 +36,8 @@ export default function StopBottomSheet({
   stop,
   onClose,
   onSelectLine,
+  isFavorite,
+  onToggleFavorite,
 }: StopBottomSheetProps) {
   const [arrivals, setArrivals] = useState<StopArrival[]>([]);
   const [loading, setLoading] = useState(false);
@@ -109,6 +113,20 @@ export default function StopBottomSheet({
           </div>
 
           <div className="flex items-center gap-1 shrink-0">
+            {stop && onToggleFavorite && (
+              <button
+                onClick={() => onToggleFavorite({ code: stop.code, name: stop.name })}
+                className="p-2 rounded-full hover:bg-gray-100 active:bg-gray-200 text-gray-500 transition-colors"
+                title={isFavorite ? "Rimuovi dai preferiti" : "Aggiungi ai preferiti"}
+              >
+                <Star
+                  className={`w-4 h-4 ${
+                    isFavorite ? "text-amber-500 fill-amber-500" : "text-gray-400"
+                  }`}
+                />
+              </button>
+            )}
+
             <button
               onClick={() => fetchArrivals(stop.code)}
               disabled={loading}

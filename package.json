@@ -19,6 +19,7 @@
     "react-leaflet": "^5.0.0"
   },
   "devDependencies": {
+    "sharp": "^0.35.5",
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
