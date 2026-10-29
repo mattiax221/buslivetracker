@@ -459,3 +459,4 @@ export function planTrip(
 
   return itineraries.slice(0, 5);
 }
+

@@ -147,3 +147,4 @@ export default function ShareModal({ isOpen, onClose, data }: ShareModalProps) {
     </div>
   );
 }
+

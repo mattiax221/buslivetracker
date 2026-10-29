@@ -858,9 +858,17 @@ function UnifiedFilterPanel({
                 <span className="font-bold">
                   Linea {Array.from(selectedLines).join(", ")}
                 </span>
-                : nessun GPS attivo in questo momento.
+                : nessun GPS o mezzo attivo al momento.
               </div>
             </div>
+            {hasShape && onFitRoute && (
+              <button
+                onClick={onFitRoute}
+                className="px-2.5 py-1 rounded-xl bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-bold text-[11px] shrink-0"
+              >
+                Vedi Percorso
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -1247,14 +1255,20 @@ export default function BusMap() {
   // Toggle to show/hide estimated vehicles for buses without GPS (enabled by default)
   const [showEstimated, setShowEstimated] = useState(true);
 
+  // Canonical official routes set for strict timetable validation
+  const officialRouteIds = useMemo(
+    () => new Set(officialRoutes.map((r) => r.id.replace(/\s+/g, "").toUpperCase())),
+    [officialRoutes]
+  );
+
   // Merge live real GPS vehicles with schedule-estimated vehicles
   const allVehicles = useMemo(() => {
     if (!showEstimated || Object.keys(lineShapes).length === 0) {
       return vehicles;
     }
-    const estimated = estimateScheduledVehicles(vehicles, lineShapes);
+    const estimated = estimateScheduledVehicles(vehicles, lineShapes, undefined, officialRouteIds);
     return [...vehicles, ...estimated];
-  }, [vehicles, lineShapes, showEstimated]);
+  }, [vehicles, lineShapes, showEstimated, officialRouteIds]);
 
   const allLines = useMemo(() => {
     const lineSet = new Set<string>();
@@ -1313,6 +1327,7 @@ export default function BusMap() {
 
   const handleToggleLine = useCallback((rawLine: string) => {
     setSelectedDirection(null);
+    setActiveVehicleRoute(null);
     const expanded = expandLineFilter(rawLine);
     setSelectedLines((prev) => {
       const next = new Set(prev);
@@ -1328,32 +1343,17 @@ export default function BusMap() {
 
   const handleClearLines = useCallback(() => {
     setSelectedDirection(null);
+    setActiveVehicleRoute(null);
     setSelectedLines(new Set());
   }, []);
 
-  // Auto-fit route bounds when a single line is selected
-  useEffect(() => {
-    if (selectedLines.size === 1) {
-      const rawLine = Array.from(selectedLines)[0];
-      if (lastFittedLineRef.current !== rawLine) {
-        lastFittedLineRef.current = rawLine;
-        const shapes = lineShapes[rawLine] || lineShapes[normalizeLine(rawLine)];
-        if (shapes && shapes.length > 0) {
-          const allPts = shapes.flatMap((s) => s.pts);
-          if (allPts.length > 0) {
-            setFitRouteTrigger(L.latLngBounds(allPts));
-          }
-        }
-      }
-    } else {
-      lastFittedLineRef.current = null;
-      setFitRouteTrigger(null);
-    }
-  }, [selectedLines, lineShapes]);
-
   const handleFitRouteForLine = useCallback(
     (rawLine: string) => {
-      const shapes = lineShapes[rawLine] || lineShapes[normalizeLine(rawLine)];
+      const clean = normalizeLine(rawLine);
+      let shapes = lineShapes[rawLine] || lineShapes[clean];
+      if ((!shapes || shapes.length === 0) && (clean === "16" || clean === "16CD" || clean === "16CS")) {
+        shapes = [...(lineShapes["16CD"] || []), ...(lineShapes["16CS"] || []), ...(lineShapes["16"] || [])];
+      }
       if (shapes && shapes.length > 0) {
         const allPts = shapes.flatMap((s) => s.pts);
         if (allPts.length > 0) {
@@ -1363,6 +1363,21 @@ export default function BusMap() {
     },
     [lineShapes]
   );
+
+  // Auto-fit route bounds when a single line or line 16 circular pair is selected
+  useEffect(() => {
+    const isLine16Pair = selectedLines.size === 2 && selectedLines.has("16CD") && selectedLines.has("16CS");
+    if (selectedLines.size === 1 || isLine16Pair) {
+      const lineKey = isLine16Pair ? "16" : Array.from(selectedLines)[0];
+      if (lastFittedLineRef.current !== lineKey) {
+        lastFittedLineRef.current = lineKey;
+        handleFitRouteForLine(lineKey);
+      }
+    } else {
+      lastFittedLineRef.current = null;
+      setFitRouteTrigger(null);
+    }
+  }, [selectedLines, handleFitRouteForLine]);
 
   const handleSelectVehicle = useCallback(
     (v: Vehicle) => {
@@ -1381,14 +1396,24 @@ export default function BusMap() {
   const handleFitCurrentRoute = useCallback(() => {
     if (selectedLines.size === 1) {
       handleFitRouteForLine(Array.from(selectedLines)[0]);
+    } else if (selectedLines.size === 2 && selectedLines.has("16CD") && selectedLines.has("16CS")) {
+      handleFitRouteForLine("16");
     }
   }, [selectedLines, handleFitRouteForLine]);
 
   const availableDirections = useMemo(() => {
-    if (selectedLines.size !== 1) return [];
-    const rawLine = Array.from(selectedLines)[0];
-    const shapes = lineShapes[rawLine] || lineShapes[normalizeLine(rawLine)] || [];
-    return shapes.map((s) => ({ dir: s.dir, headsign: s.headsign }));
+    if (selectedLines.size === 1) {
+      const rawLine = Array.from(selectedLines)[0];
+      const shapes = lineShapes[rawLine] || lineShapes[normalizeLine(rawLine)] || [];
+      return shapes.map((s) => ({ dir: s.dir, headsign: s.headsign }));
+    }
+    if (selectedLines.size === 2 && selectedLines.has("16CD") && selectedLines.has("16CS")) {
+      return [
+        { dir: "16CD", headsign: "Circolare Destra (16CD)" },
+        { dir: "16CS", headsign: "Circolare Sinistra (16CS)" },
+      ];
+    }
+    return [];
   }, [selectedLines, lineShapes]);
 
   const activeShapes = useMemo(() => {
@@ -1624,7 +1649,10 @@ export default function BusMap() {
         onSelectStop={handleSelectStop}
         filteredCount={filteredVehicles.length}
         totalCount={allVehicles.length}
-        hasShape={selectedLines.size === 1 && !!lineShapes[Array.from(selectedLines)[0]]}
+        hasShape={
+          (selectedLines.size === 1 && !!(lineShapes[Array.from(selectedLines)[0]] || lineShapes[normalizeLine(Array.from(selectedLines)[0])])) ||
+          (selectedLines.size === 2 && selectedLines.has("16CD") && selectedLines.has("16CS"))
+        }
         onFitRoute={handleFitCurrentRoute}
         savedLines={savedLines}
         savedStops={savedStops}
@@ -1957,12 +1985,14 @@ export default function BusMap() {
         {/* Locate button */}
         <button
           onClick={() => {
-            if (mapRef.current) {
-              mapRef.current.locate({ setView: true, maxZoom: 16 });
+            if (userCoords && mapRef.current) {
+              mapRef.current.flyTo(userCoords, 17, { duration: 1.2 });
+            } else if (mapRef.current) {
+              mapRef.current.locate({ setView: true, maxZoom: 17, enableHighAccuracy: true });
             }
           }}
           className="bg-white rounded-full w-12 h-12 flex items-center justify-center shadow-xl border border-gray-100 active:scale-95 transition-transform text-blue-600"
-          title="La mia posizione"
+          title="Centra sulla mia posizione"
         >
           <Navigation className="w-5 h-5" />
         </button>
@@ -2145,7 +2175,11 @@ export default function BusMap() {
         onClose={() => setSelectedStop(null)}
         onSelectLine={(line) => {
           setSelectedStop(null);
-          handleToggleLine(line);
+          setActiveVehicleRoute(null);
+          const cleanLine = normalizeLine(line);
+          const expanded = expandLineFilter(cleanLine);
+          setSelectedLines(new Set(expanded));
+          handleFitRouteForLine(cleanLine);
         }}
         isFavorite={selectedStop ? savedStops.some((s) => s.code === selectedStop.code) : false}
         onToggleFavorite={handleToggleStopFavorite}
