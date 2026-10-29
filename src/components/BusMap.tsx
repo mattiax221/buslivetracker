@@ -1048,7 +1048,7 @@ export default function BusMap() {
 
   // Closest stop near user GPS
   const [nearestStop, setNearestStop] = useState<{ stop: StopInfo; distance: number } | null>(null);
-  const [mapStyle, setMapStyle] = useState<"clean" | "minimal" | "osm">("clean");
+  const [mapStyle, setMapStyle] = useState<"clean" | "minimal" | "dark" | "osm">("clean");
 
   // Live Refresh State
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -1767,6 +1767,14 @@ export default function BusMap() {
             />
           </>
         )}
+        {mapStyle === "dark" && (
+          <TileLayer
+            key="dark-style"
+            url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+            attribution='&copy; <a href="https://carto.com/">CARTO</a>'
+            maxZoom={19}
+          />
+        )}
         {mapStyle === "osm" && (
           <TileLayer
             key="osm-style"
@@ -1937,11 +1945,11 @@ export default function BusMap() {
         <button
           onClick={() => {
             setMapStyle((prev) =>
-              prev === "clean" ? "minimal" : prev === "minimal" ? "osm" : "clean"
+              prev === "clean" ? "minimal" : prev === "minimal" ? "dark" : prev === "dark" ? "osm" : "clean"
             );
           }}
           className="bg-white rounded-full w-12 h-12 flex items-center justify-center shadow-xl border border-gray-100 active:scale-95 transition-transform text-slate-700"
-          title="Cambia stile mappa"
+          title="Cambia stile mappa (Giorno, Minima, Notte Dark, OSM)"
         >
           <Layers className="w-5 h-5" />
         </button>

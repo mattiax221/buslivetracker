@@ -1,17 +1,22 @@
 // GTT Live — Service Worker for Offline PWA & Background Push Notifications
-const CACHE_NAME = "gtt-live-cache-v1";
+const CACHE_NAME = "gtt-live-cache-v2";
 const STATIC_ASSETS = [
   "/",
   "/manifest.json",
   "/favicon.png",
   "/icon-192.png",
   "/icon-512.png",
+  "/routes.json",
+  "/stops.json",
+  "/transit-network.json",
 ];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS).catch(() => {});
+      return cache.addAll(STATIC_ASSETS).catch((err) => {
+        console.warn("SW asset pre-cache partial error:", err);
+      });
     })
   );
   self.skipWaiting();
@@ -26,6 +31,35 @@ self.addEventListener("activate", (event) => {
     })
   );
   self.clients.claim();
+});
+
+// Cache-first strategy for static data files (stops, routes, network) for offline transit queries
+self.addEventListener("fetch", (event) => {
+  const url = new URL(event.request.url);
+
+  // Skip dynamic live APIs
+  if (url.pathname.startsWith("/api/")) {
+    return;
+  }
+
+  if (
+    url.pathname.endsWith(".json") ||
+    url.pathname.endsWith(".png") ||
+    url.pathname.endsWith(".svg")
+  ) {
+    event.respondWith(
+      caches.match(event.request).then((cached) => {
+        if (cached) return cached;
+        return fetch(event.request).then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const clone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
+          return networkResponse;
+        });
+      })
+    );
+  }
 });
 
 // Listen for messages from client app (e.g. to trigger alarm notifications in background)
