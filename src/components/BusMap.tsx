@@ -1407,22 +1407,16 @@ export default function BusMap() {
         preferCanvas={true}
         ref={mapRef}
       >
-        {night ? (
-          <TileLayer
-            key="dark-carto"
-            url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a> · GTT'
-            subdomains="abcd"
-            maxZoom={19}
-          />
-        ) : (
-          <TileLayer
-            key="light-esri"
-            url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"
-            attribution='Tiles &copy; <a href="https://www.esri.com/">Esri</a> · Dati mezzi GTT'
-            maxZoom={19}
-          />
-        )}
+        <TileLayer
+          key={night ? "dark-esri" : "light-esri"}
+          url={
+            night
+              ? "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+              : "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"
+          }
+          attribution='Tiles &copy; <a href="https://www.esri.com/">Esri</a> · Dati mezzi GTT'
+          maxZoom={19}
+        />
 
         <MapController
           flyToCoords={flyToCoords}
