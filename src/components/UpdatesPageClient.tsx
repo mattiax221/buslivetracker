@@ -127,17 +127,22 @@ export default function UpdatesPageClient() {
     }
   };
 
+  const resolveEndpoint = async () => {
+    let ep = endpoint;
+    if (!ep) {
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      ep = sub?.endpoint || null;
+      setEndpoint(ep);
+    }
+    return ep;
+  };
+
   const sendTestPush = async () => {
     setPushBusy(true);
     setPushStatus(null);
     try {
-      let ep = endpoint;
-      if (!ep) {
-        const reg = await navigator.serviceWorker.ready;
-        const sub = await reg.pushManager.getSubscription();
-        ep = sub?.endpoint || null;
-        setEndpoint(ep);
-      }
+      const ep = await resolveEndpoint();
       if (!ep) {
         setPushStatus("Attiva prima le notifiche.");
         return;
@@ -153,6 +158,60 @@ export default function UpdatesPageClient() {
         return;
       }
       setPushStatus("Notifica di prova inviata. Controlla il telefono.");
+    } catch (err) {
+      setPushStatus(err instanceof Error ? err.message : "Errore invio.");
+    } finally {
+      setPushBusy(false);
+    }
+  };
+
+  /** Stesso formato degli avvisi preferiti del cron. */
+  const sendSmartTestPush = async () => {
+    setPushBusy(true);
+    setPushStatus(null);
+    try {
+      const ep = await resolveEndpoint();
+      if (!ep) {
+        setPushStatus("Attiva prima le notifiche.");
+        return;
+      }
+      let stopName = "Preferita";
+      let stopCode = "";
+      let line = "4";
+      try {
+        const stops = JSON.parse(
+          localStorage.getItem("gtt_fav_stops") || "[]"
+        ) as { code: string; name: string }[];
+        if (Array.isArray(stops) && stops[0]) {
+          stopName = stops[0].name || stopName;
+          stopCode = stops[0].code || "";
+        }
+        const lines = JSON.parse(
+          localStorage.getItem("gtt_fav_lines") || "[]"
+        ) as string[];
+        if (Array.isArray(lines) && lines[0]) line = lines[0];
+      } catch {
+        /* ignore */
+      }
+      const res = await fetch("/api/push/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          endpoint: ep,
+          kind: "smart",
+          stopName,
+          stopCode,
+          line,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setPushStatus(data.error || "Invio prova preferiti fallito.");
+        return;
+      }
+      setPushStatus(
+        `Prova avviso preferiti inviata (${stopName} · linea ${line}). Chiudi l’app e controlla la notifica.`
+      );
     } catch (err) {
       setPushStatus(err instanceof Error ? err.message : "Errore invio.");
     } finally {
@@ -458,6 +517,20 @@ export default function UpdatesPageClient() {
               >
                 Invia notifica di prova
               </button>
+              <button
+                type="button"
+                disabled={pushBusy || !pushReady}
+                onClick={sendSmartTestPush}
+                className="w-full py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.99]"
+              >
+                Prova avviso preferiti (come il cron)
+              </button>
+              <p className="text-[10px] text-slate-500 leading-snug">
+                Il secondo pulsante simula «Fermata X · Linea Y tra 3 min» e apre
+                la fermata se l’hai nei preferiti. Per un test sul bus vero:
+                salva una fermata con passaggio imminente, chiudi l’app, poi
+                GitHub Actions → Run workflow.
+              </p>
 
               <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 flex items-center justify-between gap-3">
                 <div className="min-w-0">

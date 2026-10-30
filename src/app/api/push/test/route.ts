@@ -25,7 +25,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const body = (await req.json()) as { endpoint?: string };
+    const body = (await req.json()) as {
+      endpoint?: string;
+      kind?: "basic" | "smart";
+      stopName?: string;
+      stopCode?: string;
+      line?: string;
+    };
     if (!body.endpoint) {
       return NextResponse.json(
         { error: "Serve l’endpoint della subscription." },
@@ -44,13 +50,25 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (body.kind === "smart") {
+      const stopName = (body.stopName || "Preferita").slice(0, 60);
+      const stopCode = (body.stopCode || "").replace(/\D/g, "").slice(0, 12);
+      const line = (body.line || "4").slice(0, 8);
+      await sendPushToSubscription(sub, {
+        title: `Fermata ${stopName}`,
+        body: `Linea ${line}: tra 3 min (prova avviso preferiti)`,
+        url: stopCode ? `/?stop=${encodeURIComponent(stopCode)}` : "/",
+      });
+      return NextResponse.json({ ok: true, kind: "smart" });
+    }
+
     await sendPushToSubscription(sub, {
       title: "GTT Live",
       body: "Notifica di prova: se la vedi, le push funzionano anche a schermo spento.",
       url: "/aggiornamenti",
     });
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, kind: "basic" });
   } catch (err) {
     console.error("push test", err);
     return NextResponse.json(
