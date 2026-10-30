@@ -13,12 +13,20 @@ export type RoadmapItem = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.6",
+    date: "2026-10-30",
+    title: "Mappa libera di nuovo",
+    items: [
+      "Tolto il blocco / clamp che faceva scattare lo zoom",
+      "Mappa libera; restano i limiti sui marker per non crashare",
+    ],
+  },
+  {
     version: "0.3.5",
     date: "2026-10-30",
     title: "Niente animazione continua dei mezzi",
     items: [
       "I pullman si aggiornano col feed, senza scorrimento a ogni frame",
-      "Mappa bloccata sull’area di Torino anche con il pinch",
     ],
   },
   {

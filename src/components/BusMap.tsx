@@ -48,9 +48,8 @@ import { METRO_M1_ACCESSIBILITY } from "../lib/metroAccessibility";
 import {
   ActiveSheet,
   MAP_CHROME_PAD,
-  TORINO_BOUNDS,
   TORINO_CENTER,
-  TORINO_MIN_ZOOM,
+  TORINO_SOFT_BOUNDS,
   markerBudget,
   expandLineFilter,
   getDistanceMeters,
@@ -373,30 +372,6 @@ function MapController({
   const [userPos, setUserPos] = useState<[number, number] | null>(null);
   const [userAccuracy, setUserAccuracy] = useState<number>(20);
   const hasCenteredUserRef = useRef(false);
-
-  useEffect(() => {
-    const bounds = L.latLngBounds(TORINO_BOUNDS);
-    map.setMinZoom(TORINO_MIN_ZOOM);
-    map.setMaxZoom(18);
-    map.setMaxBounds(bounds);
-    map.options.maxBoundsViscosity = 1;
-
-    const clamp = () => {
-      if (map.getZoom() < TORINO_MIN_ZOOM) {
-        map.setZoom(TORINO_MIN_ZOOM, { animate: false });
-      }
-      if (!bounds.contains(map.getCenter())) {
-        map.panInsideBounds(bounds, { animate: false });
-      }
-    };
-    clamp();
-    map.on("zoomend", clamp);
-    map.on("moveend", clamp);
-    return () => {
-      map.off("zoomend", clamp);
-      map.off("moveend", clamp);
-    };
-  }, [map]);
 
   const centerOnUser = useCallback(
     (lat: number, lon: number, instant: boolean) => {
@@ -797,7 +772,7 @@ export default function BusMap() {
       return match ? [match] : [];
     }
 
-    const [[south, west], [north, east]] = TORINO_BOUNDS;
+    const [[south, west], [north, east]] = TORINO_SOFT_BOUNDS;
     const inTurin = (v: Vehicle) =>
       v.lat >= south && v.lat <= north && v.lon >= west && v.lon <= east;
 
@@ -1118,13 +1093,8 @@ export default function BusMap() {
       <MapContainer
         center={mapBoot.center}
         zoom={mapBoot.zoom}
-        minZoom={TORINO_MIN_ZOOM}
+        minZoom={11}
         maxZoom={18}
-        maxBounds={TORINO_BOUNDS}
-        maxBoundsViscosity={1}
-        zoomAnimation={false}
-        fadeAnimation={false}
-        markerZoomAnimation={false}
         className="w-full h-full"
         zoomControl={false}
         attributionControl={true}

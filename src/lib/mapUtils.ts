@@ -1,21 +1,18 @@
 export const TORINO_CENTER: [number, number] = [45.0703, 7.6869];
 
-/** Greater Turin. Enforced on the map instance so pinch-zoom cannot escape. */
-export const TORINO_BOUNDS: [[number, number], [number, number]] = [
-  [44.98, 7.52],
-  [45.15, 7.79],
+/** Soft area used only to ignore absurd out-of-region GPS points — map stays free. */
+export const TORINO_SOFT_BOUNDS: [[number, number], [number, number]] = [
+  [44.85, 7.35],
+  [45.25, 7.95],
 ];
 
-/** City-scale. Below this the viewport shows half of Piedmont. */
-export const TORINO_MIN_ZOOM = 13;
-
-/** How many bus DOM markers to draw. */
+/** Cap DOM bus markers so low zoom does not crash phones. */
 export function markerBudget(zoom: number, lineFiltered: boolean): number {
-  if (lineFiltered) return 40;
-  if (zoom >= 16) return 48;
-  if (zoom >= 15) return 32;
-  if (zoom >= 14) return 20;
-  return 12;
+  if (lineFiltered) return 36;
+  if (zoom >= 16) return 42;
+  if (zoom >= 15) return 28;
+  if (zoom >= 14) return 18;
+  return 10;
 }
 
 export const TRAM_LINES = new Set([
