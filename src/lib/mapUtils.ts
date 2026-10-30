@@ -1,21 +1,21 @@
 export const TORINO_CENTER: [number, number] = [45.0703, 7.6869];
 
-/** Urban GTT area. The map cannot pan or zoom out past this. */
+/** Greater Turin. Enforced on the map instance so pinch-zoom cannot escape. */
 export const TORINO_BOUNDS: [[number, number], [number, number]] = [
-  [44.9, 7.42],
-  [45.22, 7.88],
+  [44.98, 7.52],
+  [45.15, 7.79],
 ];
 
-export const TORINO_MIN_ZOOM = 12;
+/** City-scale. Below this the viewport shows half of Piedmont. */
+export const TORINO_MIN_ZOOM = 13;
 
-/** How many bus markers to draw. Low zoom = few icons, or the phone dies. */
+/** How many bus DOM markers to draw. */
 export function markerBudget(zoom: number, lineFiltered: boolean): number {
-  if (lineFiltered) return 80;
-  if (zoom >= 16) return 110;
-  if (zoom >= 15) return 64;
-  if (zoom >= 14) return 36;
-  if (zoom >= 13) return 18;
-  return 10;
+  if (lineFiltered) return 40;
+  if (zoom >= 16) return 48;
+  if (zoom >= 15) return 32;
+  if (zoom >= 14) return 20;
+  return 12;
 }
 
 export const TRAM_LINES = new Set([

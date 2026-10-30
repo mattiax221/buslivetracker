@@ -13,6 +13,15 @@ export type RoadmapItem = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.5",
+    date: "2026-10-30",
+    title: "Niente animazione continua dei mezzi",
+    items: [
+      "I pullman si aggiornano col feed, senza scorrimento a ogni frame",
+      "Mappa bloccata sull’area di Torino anche con il pinch",
+    ],
+  },
+  {
     version: "0.3.4",
     date: "2026-10-30",
     title: "Mappa solo Torino, niente crash a zoom basso",

@@ -62,12 +62,6 @@ import {
   normalizeLine,
 } from "../lib/mapUtils";
 import {
-  applyPollUpdate,
-  tickMotions,
-  type MotionSample,
-  type VehicleMotionState,
-} from "../lib/vehicleMotion";
-import {
   readCachedUserLocation,
   writeCachedUserLocation,
 } from "../lib/userLocationCache";
@@ -208,28 +202,18 @@ function getVehicleDirection(v: Vehicle, shapes: RouteShape[]): string | null {
 }
 
 /**
- * Marker membership / popup are React-driven.
- * Between polls, lat/lng/heading are updated imperatively by the rAF loop
- * via the registry (avoid setState @ 60fps). When React does re-render,
- * pass the current animated coords so react-leaflet does not snap back.
+ * Positions update only when the feed poll arrives (no per-frame glide).
+ * The detail popup exists only for the tapped bus.
  */
 const VehicleMarkerItem = memo(function VehicleMarkerItem({
   vehicle,
-  displayLat,
-  displayLon,
-  displayHeading,
-  onRegister,
-  onUnregister,
+  detailOpen,
   onSelectVehicle,
   onFitRoute,
   onShareVehicle,
 }: {
   vehicle: Vehicle;
-  displayLat: number;
-  displayLon: number;
-  displayHeading: number;
-  onRegister: (id: string, marker: L.Marker) => void;
-  onUnregister: (id: string) => void;
+  detailOpen: boolean;
   onSelectVehicle?: (v: Vehicle) => void;
   onFitRoute?: (line: string) => void;
   onShareVehicle?: (v: Vehicle) => void;
@@ -239,27 +223,23 @@ const VehicleMarkerItem = memo(function VehicleMarkerItem({
   const markerRef = useRef<L.Marker | null>(null);
   const icon = getVehicleIcon(
     vehicle.line,
-    displayHeading,
+    vehicle.heading,
     vehicle.isEstimated,
     vehicle.speed <= 1.8
   );
 
-  const setMarkerRef = useCallback(
-    (marker: L.Marker | null) => {
-      markerRef.current = marker;
-      if (marker) onRegister(vehicle.id, marker);
-      else onUnregister(vehicle.id);
-    },
-    [vehicle.id, onRegister, onUnregister]
-  );
+  useEffect(() => {
+    if (detailOpen) markerRef.current?.openPopup();
+  }, [detailOpen]);
 
   return (
     <Marker
-      ref={setMarkerRef as unknown as React.Ref<L.Marker>}
-      position={[displayLat, displayLon]}
+      ref={markerRef as unknown as React.Ref<L.Marker>}
+      position={[vehicle.lat, vehicle.lon]}
       icon={icon}
       eventHandlers={{ click: () => onSelectVehicle?.(vehicle) }}
     >
+      {detailOpen && (
       <Popup>
         <div className="text-sm min-w-[190px] p-1 font-sans">
           <div className="font-bold text-base text-slate-900 flex items-center justify-between gap-1.5">
@@ -369,6 +349,7 @@ const VehicleMarkerItem = memo(function VehicleMarkerItem({
           </div>
         </div>
       </Popup>
+      )}
     </Marker>
   );
 });
@@ -392,6 +373,30 @@ function MapController({
   const [userPos, setUserPos] = useState<[number, number] | null>(null);
   const [userAccuracy, setUserAccuracy] = useState<number>(20);
   const hasCenteredUserRef = useRef(false);
+
+  useEffect(() => {
+    const bounds = L.latLngBounds(TORINO_BOUNDS);
+    map.setMinZoom(TORINO_MIN_ZOOM);
+    map.setMaxZoom(18);
+    map.setMaxBounds(bounds);
+    map.options.maxBoundsViscosity = 1;
+
+    const clamp = () => {
+      if (map.getZoom() < TORINO_MIN_ZOOM) {
+        map.setZoom(TORINO_MIN_ZOOM, { animate: false });
+      }
+      if (!bounds.contains(map.getCenter())) {
+        map.panInsideBounds(bounds, { animate: false });
+      }
+    };
+    clamp();
+    map.on("zoomend", clamp);
+    map.on("moveend", clamp);
+    return () => {
+      map.off("zoomend", clamp);
+      map.off("moveend", clamp);
+    };
+  }, [map]);
 
   const centerOnUser = useCallback(
     (lat: number, lon: number, instant: boolean) => {
@@ -608,15 +613,7 @@ export default function BusMap() {
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const mapRef = useRef<L.Map | null>(null);
-  const motionStatesRef = useRef<Map<string, VehicleMotionState>>(new Map());
-  const markerRegistryRef = useRef<Map<string, L.Marker>>(new Map());
-  const vehicleMetaRef = useRef<Map<string, Vehicle>>(new Map());
-  const rafRef = useRef<number | null>(null);
-  const lastPollAtRef = useRef<number>(0);
-  const lastPollIntervalRef = useRef<number>(REFRESH_MS);
   const pollInFlightRef = useRef(false);
-  /** Avoid rebuilding DivIcons every frame while stopped */
-  const iconModeRef = useRef<Map<string, string>>(new Map());
 
   const openSheet = useCallback((sheet: ActiveSheet) => {
     setActiveSheet(sheet);
@@ -711,14 +708,6 @@ export default function BusMap() {
       const res = await fetch("/api/vehicles", { cache: "no-store" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data: ApiResponse = await res.json();
-      const now = performance.now();
-      if (lastPollAtRef.current > 0) {
-        lastPollIntervalRef.current = Math.max(
-          2500,
-          Math.min(now - lastPollAtRef.current, 12000)
-        );
-      }
-      lastPollAtRef.current = now;
       setVehicles(data.vehicles);
       setIsLive(true);
       setError(null);
@@ -761,121 +750,6 @@ export default function BusMap() {
     );
     return [...vehicles, ...estimated];
   }, [vehicles, lineShapes, showEstimated, officialRouteIds]);
-
-  // Feed poll positions into motion targets (glide until next silent poll)
-  useEffect(() => {
-    const nextById = new Map<string, MotionSample>();
-    const meta = new Map<string, Vehicle>();
-    for (const v of allVehicles) {
-      nextById.set(v.id, {
-        lat: v.lat,
-        lon: v.lon,
-        heading: v.heading || 0,
-        speed: v.speed ?? 0,
-      });
-      meta.set(v.id, v);
-    }
-    vehicleMetaRef.current = meta;
-    // Glide slightly longer than the measured poll gap so icons never freeze mid-route
-    const glideMs = Math.min(
-      Math.max(lastPollIntervalRef.current * 1.08, REFRESH_MS),
-      REFRESH_MS * 1.5
-    );
-    applyPollUpdate(
-      motionStatesRef.current,
-      nextById,
-      performance.now(),
-      glideMs
-    );
-  }, [allVehicles]);
-
-  const handleRegisterMarker = useCallback((id: string, marker: L.Marker) => {
-    markerRegistryRef.current.set(id, marker);
-    const motion = motionStatesRef.current.get(id);
-    if (motion) {
-      marker.setLatLng([motion.current.lat, motion.current.lon]);
-    }
-  }, []);
-
-  const handleUnregisterMarker = useCallback((id: string) => {
-    markerRegistryRef.current.delete(id);
-  }, []);
-
-  // Motion loop throttled to ~12fps — enough for glide, much lighter on phones
-  useEffect(() => {
-    let active = true;
-    let lastTick = 0;
-    const FRAME_MS = 1000 / 12;
-
-    const tick = (now: number) => {
-      if (!active) return;
-      if (
-        typeof document !== "undefined" &&
-        document.visibilityState === "hidden"
-      ) {
-        rafRef.current = null;
-        return;
-      }
-
-      rafRef.current = requestAnimationFrame(tick);
-      if (now - lastTick < FRAME_MS) return;
-      lastTick = now;
-
-      const updates = tickMotions(motionStatesRef.current, now);
-      const registry = markerRegistryRef.current;
-      const metaMap = vehicleMetaRef.current;
-
-      for (let i = 0; i < updates.length; i++) {
-        const { id, sample, headingChanged, mode, animating } = updates[i];
-        if (!animating && !headingChanged) continue;
-        const marker = registry.get(id);
-        if (!marker) continue;
-
-        if (animating) {
-          marker.setLatLng([sample.lat, sample.lon]);
-        }
-
-        const meta = metaMap.get(id);
-        if (!meta) continue;
-        const stopped = mode === "stopped";
-        const iconKey = `${meta.line}_${Math.round(sample.heading / 12) * 12}_${stopped ? "s" : "m"}_${meta.isEstimated ? "e" : "r"}`;
-        if (headingChanged || iconModeRef.current.get(id) !== iconKey) {
-          marker.setIcon(
-            getVehicleIcon(
-              meta.line,
-              sample.heading,
-              meta.isEstimated,
-              stopped
-            )
-          );
-          iconModeRef.current.set(id, iconKey);
-        }
-      }
-    };
-
-    const onVisibility = () => {
-      if (
-        document.visibilityState === "visible" &&
-        active &&
-        rafRef.current == null
-      ) {
-        lastTick = 0;
-        rafRef.current = requestAnimationFrame(tick);
-      }
-    };
-
-    document.addEventListener("visibilitychange", onVisibility);
-    rafRef.current = requestAnimationFrame(tick);
-
-    return () => {
-      active = false;
-      document.removeEventListener("visibilitychange", onVisibility);
-      if (rafRef.current != null) {
-        cancelAnimationFrame(rafRef.current);
-        rafRef.current = null;
-      }
-    };
-  }, []);
 
   const allLines = useMemo(() => {
     const lineSet = new Set<string>();
@@ -1032,17 +906,13 @@ export default function BusMap() {
   const handleSelectVehicle = useCallback(
     (v: Vehicle) => {
       const shapes = lineShapes[v.line] || lineShapes[normalizeLine(v.line)] || [];
-      const motion = motionStatesRef.current.get(v.id);
       setActiveVehicleRoute({
         vehicleId: v.id,
         line: v.line,
         dir: getVehicleDirection(v, shapes),
         headsign: v.headsign,
       });
-      setFlyToCoords([
-        motion?.current.lat ?? v.lat,
-        motion?.current.lon ?? v.lon,
-      ]);
+      setFlyToCoords([v.lat, v.lon]);
     },
     [lineShapes]
   );
@@ -1320,23 +1190,16 @@ export default function BusMap() {
           );
         })}
 
-        {visibleVehicles.map((v) => {
-          const motion = motionStatesRef.current.get(v.id);
-          return (
+        {visibleVehicles.map((v) => (
             <VehicleMarkerItem
               key={v.id}
               vehicle={v}
-              displayLat={motion?.current.lat ?? v.lat}
-              displayLon={motion?.current.lon ?? v.lon}
-              displayHeading={motion?.current.heading ?? v.heading}
-              onRegister={handleRegisterMarker}
-              onUnregister={handleUnregisterMarker}
+              detailOpen={activeVehicleRoute?.vehicleId === v.id}
               onSelectVehicle={handleSelectVehicle}
               onFitRoute={handleFitRouteForLine}
               onShareVehicle={handleShareVehicle}
             />
-          );
-        })}
+          ))}
 
         <StopsLayer
           allStops={allStops}
