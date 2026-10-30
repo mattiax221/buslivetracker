@@ -11,6 +11,7 @@ import {
   Accessibility,
   Shield,
   Newspaper,
+  RefreshCw,
 } from "lucide-react";
 
 interface NearestStopInfo {
@@ -25,6 +26,8 @@ interface MapBottomDockProps {
   showEstimated: boolean;
   onToggleEstimated: () => void;
   onLocate: () => void;
+  onRefreshVehicles: () => void;
+  refreshing?: boolean;
   onOpenFavorites: () => void;
   onOpenMetro: () => void;
   onOpenAbout: () => void;
@@ -38,6 +41,8 @@ export default function MapBottomDock({
   showEstimated,
   onToggleEstimated,
   onLocate,
+  onRefreshVehicles,
+  refreshing = false,
   onOpenFavorites,
   onOpenMetro,
   onOpenAbout,
@@ -198,7 +203,22 @@ export default function MapBottomDock({
             className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 active:scale-[0.97] active:bg-slate-50/80 text-slate-700 transition-transform"
           >
             <LocateFixed className="w-5 h-5 text-[#0B5FFF]" />
-            <span className="text-[10px] font-bold">Vicino a me</span>
+            <span className="text-[10px] font-bold">Vicino</span>
+          </button>
+          <div className="w-px bg-slate-200/80 my-2" />
+          <button
+            type="button"
+            onClick={onRefreshVehicles}
+            disabled={refreshing}
+            className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 active:scale-[0.97] active:bg-slate-50/80 text-slate-700 transition-transform disabled:opacity-60"
+            aria-label="Aggiorna posizione mezzi"
+          >
+            <RefreshCw
+              className={`w-5 h-5 text-[#0B5FFF] ${refreshing ? "animate-spin" : ""}`}
+            />
+            <span className="text-[10px] font-bold">
+              {refreshing ? "Attendi" : "Aggiorna"}
+            </span>
           </button>
           <div className="w-px bg-slate-200/80 my-2" />
           <button
@@ -208,7 +228,7 @@ export default function MapBottomDock({
             <Star className="w-5 h-5 text-amber-500 fill-amber-500" />
             <span className="text-[10px] font-bold">Preferiti</span>
             {favoritesCount > 0 && (
-              <span className="absolute top-1.5 right-[28%] min-w-[16px] h-4 px-1 bg-amber-500 text-white text-[9px] rounded-full font-black flex items-center justify-center">
+              <span className="absolute top-1.5 right-[22%] min-w-[16px] h-4 px-1 bg-amber-500 text-white text-[9px] rounded-full font-black flex items-center justify-center">
                 {favoritesCount}
               </span>
             )}

@@ -109,7 +109,7 @@ interface RouteShape {
   pts: [number, number][];
 }
 
-const REFRESH_MS = 5_000;
+const REFRESH_MS = 8_000;
 
 /* Approximate metro station coords for fly-to (name match against stops.json) */
 const METRO_FOCUS_FALLBACK: Record<string, [number, number]> = {
@@ -558,7 +558,8 @@ export default function BusMap() {
   const [geoHintVisible, setGeoHintVisible] = useState(false);
   const [mapBounds, setMapBounds] = useState<L.LatLngBounds | null>(null);
   const [mapZoom, setMapZoom] = useState(14);
-  const [showEstimated, setShowEstimated] = useState(true);
+  const [showEstimated, setShowEstimated] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const mapBoot = useMemo(() => {
     const cached = readCachedUserLocation();
@@ -602,8 +603,14 @@ export default function BusMap() {
     setShareModalData(null);
   }, []);
 
+  const boundsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const handleBoundsChange = useCallback((b: L.LatLngBounds) => {
-    setMapBounds(b);
+    if (boundsDebounceRef.current) clearTimeout(boundsDebounceRef.current);
+    boundsDebounceRef.current = setTimeout(() => {
+      setMapBounds(b);
+      boundsDebounceRef.current = null;
+    }, 180);
   }, []);
 
   const handleZoomChange = useCallback((z: number) => {
@@ -673,12 +680,18 @@ export default function BusMap() {
   }, []);
 
   /** Silent background poll — no spinner / countdown UI. */
-  const fetchVehicles = useCallback(async () => {
-    if (pollInFlightRef.current) return;
-    if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+  const fetchVehicles = useCallback(async (opts?: { manual?: boolean }) => {
+    const manual = !!opts?.manual;
+    if (pollInFlightRef.current && !manual) return;
+    if (
+      !manual &&
+      typeof document !== "undefined" &&
+      document.visibilityState === "hidden"
+    ) {
       return;
     }
     pollInFlightRef.current = true;
+    if (manual) setRefreshing(true);
     try {
       const res = await fetch("/api/vehicles", { cache: "no-store" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -691,6 +704,7 @@ export default function BusMap() {
       setError(err instanceof Error ? err.message : "Errore rete");
     } finally {
       setLoading(false);
+      setRefreshing(false);
       pollInFlightRef.current = false;
     }
   }, []);
@@ -716,15 +730,40 @@ export default function BusMap() {
   );
 
   const allVehicles = useMemo(() => {
-    if (!showEstimated || Object.keys(lineShapes).length === 0) return vehicles;
+    // Schedule estimator walks ~3MB of shapes — only when the user asks
+    // (stima ON) and we actually need synthetic markers.
+    if (!showEstimated) return vehicles;
+    if (Object.keys(lineShapes).length === 0) return vehicles;
+    if (selectedLines.size === 0 && mapZoom < 15) return vehicles;
+
+    let shapesForEstimate = lineShapes;
+    if (selectedLines.size > 0) {
+      const filtered: Record<string, RouteShape[]> = {};
+      for (const raw of selectedLines) {
+        for (const key of expandLineFilter(raw)) {
+          const shapes = lineShapes[key] || lineShapes[normalizeLine(key)];
+          if (shapes) filtered[key] = shapes;
+        }
+      }
+      if (Object.keys(filtered).length === 0) return vehicles;
+      shapesForEstimate = filtered;
+    }
+
     const estimated = estimateScheduledVehicles(
       vehicles,
-      lineShapes,
+      shapesForEstimate,
       undefined,
       officialRouteIds
     );
     return [...vehicles, ...estimated];
-  }, [vehicles, lineShapes, showEstimated, officialRouteIds]);
+  }, [
+    vehicles,
+    lineShapes,
+    showEstimated,
+    officialRouteIds,
+    selectedLines,
+    mapZoom,
+  ]);
 
   const allLines = useMemo(() => {
     const lineSet = new Set<string>();
@@ -1273,6 +1312,10 @@ export default function BusMap() {
         showEstimated={showEstimated}
         onToggleEstimated={() => setShowEstimated((v) => !v)}
         onLocate={handleLocate}
+        onRefreshVehicles={() => {
+          void fetchVehicles({ manual: true });
+        }}
+        refreshing={refreshing}
         onOpenFavorites={() => openSheet("favorites")}
         onOpenMetro={() => openSheet("metro")}
         onOpenAbout={() => openSheet("about")}

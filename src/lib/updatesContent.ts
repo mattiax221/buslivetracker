@@ -13,6 +13,16 @@ export type RoadmapItem = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.7",
+    date: "2026-10-30",
+    title: "Meno freeze + aggiorna mezzi",
+    items: [
+      "Tasto Aggiorna nella barra in basso",
+      "Stime da orario spente di default (pesanti)",
+      "Poll più leggero e debounce sullo spostamento mappa",
+    ],
+  },
+  {
     version: "0.3.6",
     date: "2026-10-30",
     title: "Mappa libera di nuovo",
