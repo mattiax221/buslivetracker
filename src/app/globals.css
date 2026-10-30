@@ -76,6 +76,18 @@ body:has(.map-shell) {
   background: var(--app-bg);
 }
 
+/* Night map: same detailed Esri tiles, darkened (Dark Gray Base blanks at high zoom) */
+html[data-theme="dark"] .leaflet-tile-pane {
+  filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.92)
+    saturate(0.75);
+}
+html[data-theme="dark"] .leaflet-overlay-pane,
+html[data-theme="dark"] .leaflet-marker-pane,
+html[data-theme="dark"] .leaflet-tooltip-pane,
+html[data-theme="dark"] .leaflet-popup-pane {
+  filter: none;
+}
+
 html[data-theme="dark"] .leaflet-control-attribution {
   background: rgba(15, 23, 42, 0.9) !important;
   color: #94a3b8 !important;

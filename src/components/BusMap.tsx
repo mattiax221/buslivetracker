@@ -79,7 +79,6 @@ import {
   tickMotions,
   type VehicleMotionState,
 } from "../lib/vehicleMotion";
-import { useNight } from "../hooks/useNight";
 
 /* ── Types ── */
 interface Vehicle {
@@ -637,7 +636,6 @@ export default function BusMap() {
   const [mapZoom, setMapZoom] = useState(14);
   const [showEstimated, setShowEstimated] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const night = useNight();
 
   const mapBoot = useMemo(() => {
     const cached = readCachedUserLocation();
@@ -1408,12 +1406,8 @@ export default function BusMap() {
         ref={mapRef}
       >
         <TileLayer
-          key={night ? "dark-esri" : "light-esri"}
-          url={
-            night
-              ? "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
-              : "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"
-          }
+          key="esri-street"
+          url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"
           attribution='Tiles &copy; <a href="https://www.esri.com/">Esri</a> · Dati mezzi GTT'
           maxZoom={19}
         />
