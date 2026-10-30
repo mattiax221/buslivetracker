@@ -22,20 +22,16 @@ export default function PermissionsPrompt() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
-  const recheck = useCallback(async () => {
+  const recheck = useCallback(async (opts?: { softPush?: boolean }) => {
     await registerServiceWorker();
     const next = await getPermissionSnapshot();
     setSnap(next);
 
     if (!next.needsAttention) {
       setOpen(false);
-      await ensurePushIfGranted();
+      // Only once at boot — not on every focus (that can thrash / feel like a kick)
+      if (opts?.softPush) await ensurePushIfGranted();
       return;
-    }
-
-    // Se già granted notifiche ma manca subscription, ritenta in silenzio
-    if (next.notifications === "granted") {
-      await ensurePushIfGranted();
     }
 
     if (shouldShowPermissionsPrompt(next)) {
@@ -45,14 +41,13 @@ export default function PermissionsPrompt() {
 
   useEffect(() => {
     const boot = window.setTimeout(() => {
-      void recheck();
-    }, 600);
+      void recheck({ softPush: true });
+    }, 1200);
 
     const onVis = () => {
       if (document.visibilityState === "visible") void recheck();
     };
     document.addEventListener("visibilitychange", onVis);
-    window.addEventListener("focus", onVis);
 
     const interval = window.setInterval(() => {
       if (document.visibilityState === "visible") void recheck();
@@ -62,7 +57,6 @@ export default function PermissionsPrompt() {
       window.clearTimeout(boot);
       window.clearInterval(interval);
       document.removeEventListener("visibilitychange", onVis);
-      window.removeEventListener("focus", onVis);
     };
   }, [recheck]);
 

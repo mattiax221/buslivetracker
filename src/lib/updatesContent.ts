@@ -13,6 +13,16 @@ export type RoadmapItem = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.9",
+    date: "2026-10-30",
+    title: "Fix crash / kick fuori dall’app",
+    items: [
+      "Service worker non cachea più JSON enormi (causa OOM Android)",
+      "A zoom largo i GPS restano tutti, ma come punti leggeri",
+      "line-shapes da 3MB solo se serve (linea o stime)",
+    ],
+  },
+  {
     version: "0.3.8",
     date: "2026-10-30",
     title: "Tutti i mezzi GPS, stime opzionali",

@@ -201,17 +201,19 @@ function getVehicleDirection(v: Vehicle, shapes: RouteShape[]): string | null {
 
 /**
  * Positions update only when the feed poll arrives (no per-frame glide).
- * The detail popup exists only for the tapped bus.
+ * Compact mode = CircleMarker (light) so hundreds of GPS buses don't OOM Android.
  */
 const VehicleMarkerItem = memo(function VehicleMarkerItem({
   vehicle,
   detailOpen,
+  compact,
   onSelectVehicle,
   onFitRoute,
   onShareVehicle,
 }: {
   vehicle: Vehicle;
   detailOpen: boolean;
+  compact: boolean;
   onSelectVehicle?: (v: Vehicle) => void;
   onFitRoute?: (line: string) => void;
   onShareVehicle?: (v: Vehicle) => void;
@@ -219,6 +221,7 @@ const VehicleMarkerItem = memo(function VehicleMarkerItem({
   const metro = isMetro(vehicle.line);
   const tram = !metro && isTram(vehicle.line);
   const markerRef = useRef<L.Marker | null>(null);
+  const color = lineColor(vehicle.line);
   const icon = getVehicleIcon(
     vehicle.line,
     vehicle.heading,
@@ -229,6 +232,23 @@ const VehicleMarkerItem = memo(function VehicleMarkerItem({
   useEffect(() => {
     if (detailOpen) markerRef.current?.openPopup();
   }, [detailOpen]);
+
+  // Light dots when zoomed out — same GPS fleet, fraction of the DOM cost
+  if (compact && !detailOpen) {
+    return (
+      <CircleMarker
+        center={[vehicle.lat, vehicle.lon]}
+        radius={vehicle.isEstimated ? 5 : 6}
+        pathOptions={{
+          color: "#fff",
+          weight: 1,
+          fillColor: color,
+          fillOpacity: vehicle.isEstimated ? 0.55 : 0.92,
+        }}
+        eventHandlers={{ click: () => onSelectVehicle?.(vehicle) }}
+      />
+    );
+  }
 
   return (
     <Marker
@@ -667,16 +687,27 @@ export default function BusMap() {
       .then((data: OfficialRoute[]) => setOfficialRoutes(data))
       .catch((err) => console.error("Error loading routes.json:", err));
 
-    fetch("/line-shapes.json")
-      .then((res) => res.json())
-      .then((data: Record<string, RouteShape[]>) => setLineShapes(data))
-      .catch((err) => console.error("Error loading line-shapes.json:", err));
-
     fetch("/api/alerts")
       .then((res) => res.json())
       .then((data) => setAlertsCount(data.count || 0))
       .catch((err) => console.error("Error checking alerts:", err));
   }, []);
+
+  // ~3MB shapes: load only when drawing a route or enabling scheduled estimates
+  useEffect(() => {
+    if (!showEstimated && selectedLines.size === 0) return;
+    if (Object.keys(lineShapes).length > 0) return;
+    let cancelled = false;
+    fetch("/line-shapes.json")
+      .then((res) => res.json())
+      .then((data: Record<string, RouteShape[]>) => {
+        if (!cancelled) setLineShapes(data);
+      })
+      .catch((err) => console.error("Error loading line-shapes.json:", err));
+    return () => {
+      cancelled = true;
+    };
+  }, [showEstimated, selectedLines, lineShapes]);
 
   /** Silent background poll — no spinner / countdown UI. */
   const fetchVehicles = useCallback(async (opts?: { manual?: boolean }) => {
@@ -1181,6 +1212,7 @@ export default function BusMap() {
             <VehicleMarkerItem
               key={v.id}
               vehicle={v}
+              compact={mapZoom < 15}
               detailOpen={activeVehicleRoute?.vehicleId === v.id}
               onSelectVehicle={handleSelectVehicle}
               onFitRoute={handleFitRouteForLine}

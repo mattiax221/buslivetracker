@@ -1,11 +1,7 @@
-// GTT Live — Service Worker (cache + Web Push)
-const CACHE_NAME = "gtt-live-cache-v6";
-const PRECACHE = [
-  "/manifest.json",
-  "/favicon.png",
-  "/icon-192.png",
-  "/icon-512.png",
-];
+// GTT Live — Service Worker (icons only + Web Push)
+// Do NOT cache stops.json / line-shapes.json (multi‑MB) — that OOMs Android PWAs.
+const CACHE_NAME = "gtt-live-cache-v7";
+const PRECACHE = ["/manifest.json", "/favicon.png", "/icon-192.png", "/icon-512.png"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -32,20 +28,16 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
 
+  // Never hijack navigations or APIs — avoids blank/reload kicks
+  if (event.request.mode === "navigate") return;
   if (url.pathname.startsWith("/api/")) return;
 
-  if (url.pathname.endsWith(".json")) {
-    event.respondWith(
-      fetch(event.request)
-        .then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
-            const clone = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-          }
-          return networkResponse;
-        })
-        .catch(() => caches.match(event.request))
-    );
+  // Never cache huge JSON datasets
+  if (
+    url.pathname.endsWith("/stops.json") ||
+    url.pathname.endsWith("/line-shapes.json") ||
+    url.pathname.endsWith("/routes.json")
+  ) {
     return;
   }
 
