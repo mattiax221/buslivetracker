@@ -73,6 +73,12 @@ import {
 } from "../lib/userLocationCache";
 import { pushRecentLine, pushRecentStop } from "../lib/recentHistory";
 import SmartAlertsRunner from "./SmartAlertsRunner";
+import {
+  applyPollUpdate,
+  sampleAt,
+  tickMotions,
+  type VehicleMotionState,
+} from "../lib/vehicleMotion";
 
 /* ── Types ── */
 interface Vehicle {
@@ -118,7 +124,11 @@ interface RouteShape {
   pts: [number, number][];
 }
 
-const REFRESH_MS = 8_000;
+/** Visible tab: max reactivity vs GTT feed. Hidden: save battery. */
+const REFRESH_MS_VISIBLE = 3_000;
+const REFRESH_MS_HIDDEN = 15_000;
+/** Motion tick ~12fps — light, not every paint. */
+const MOTION_TICK_MS = 80;
 
 /* Approximate metro station coords for fly-to (name match against stops.json) */
 const METRO_FOCUS_FALLBACK: Record<string, [number, number]> = {
@@ -210,7 +220,7 @@ function getVehicleDirection(v: Vehicle, shapes: RouteShape[]): string | null {
 }
 
 /**
- * Positions update only when the feed poll arrives (no per-frame glide).
+ * GPS dots use calibrated / glided coords from vehicleMotion.
  * Compact mode = CircleMarker (light) so hundreds of GPS buses don't OOM Android.
  */
 const VehicleMarkerItem = memo(function VehicleMarkerItem({
@@ -656,6 +666,14 @@ export default function BusMap() {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const pollInFlightRef = useRef(false);
+  const motionStatesRef = useRef<Map<string, VehicleMotionState>>(new Map());
+  const feedVehiclesRef = useRef<Vehicle[]>([]);
+  const motionRafRef = useRef(0);
+  const motionLastTickRef = useRef(0);
+  const motionRunningRef = useRef(false);
+  const pollIntervalMsRef = useRef(REFRESH_MS_VISIBLE);
+  const mapZoomRef = useRef(mapZoom);
+  mapZoomRef.current = mapZoom;
 
   const clearTripGuidance = useCallback(() => {
     setTripGuidance(null);
@@ -790,6 +808,94 @@ export default function BusMap() {
     };
   }, [showEstimated, selectedLines, lineShapes]);
 
+  const mergeCalibratedVehicles = useCallback(
+    (feed: Vehicle[], now: number): Vehicle[] => {
+      const motions = motionStatesRef.current;
+      return feed.map((v) => {
+        if (v.isEstimated || v.isSimulated || isMetro(v.line)) return v;
+        const st = motions.get(v.id);
+        if (!st) return v;
+        const s = sampleAt(st, now);
+        return { ...v, lat: s.lat, lon: s.lon, heading: s.heading };
+      });
+    },
+    []
+  );
+
+  const stopMotionLoop = useCallback(() => {
+    if (motionRafRef.current) {
+      cancelAnimationFrame(motionRafRef.current);
+      motionRafRef.current = 0;
+    }
+    motionRunningRef.current = false;
+  }, []);
+
+  const startMotionLoop = useCallback(() => {
+    if (motionRunningRef.current) return;
+    motionRunningRef.current = true;
+    motionLastTickRef.current = 0;
+
+    const step = (t: number) => {
+      if (!motionRunningRef.current) return;
+      motionRafRef.current = requestAnimationFrame(step);
+
+      if (
+        typeof document !== "undefined" &&
+        document.visibilityState === "hidden"
+      ) {
+        return;
+      }
+      // Zoomed out = light dots; snap on poll only (no glide loop)
+      if (mapZoomRef.current < 14) {
+        stopMotionLoop();
+        return;
+      }
+      if (t - motionLastTickRef.current < MOTION_TICK_MS) return;
+      motionLastTickRef.current = t;
+
+      const now = Date.now();
+      const ticks = tickMotions(motionStatesRef.current, now);
+      const any = ticks.some((x) => x.animating);
+      if (!any) {
+        stopMotionLoop();
+        setVehicles(mergeCalibratedVehicles(feedVehiclesRef.current, now));
+        return;
+      }
+      setVehicles(mergeCalibratedVehicles(feedVehiclesRef.current, now));
+    };
+
+    motionRafRef.current = requestAnimationFrame(step);
+  }, [mergeCalibratedVehicles, stopMotionLoop]);
+
+  const applyFeedVehicles = useCallback(
+    (feed: Vehicle[]) => {
+      feedVehiclesRef.current = feed;
+      const now = Date.now();
+      const nextById = new Map<
+        string,
+        { lat: number; lon: number; heading: number; speed?: number }
+      >();
+      for (const v of feed) {
+        if (v.isEstimated || v.isSimulated || isMetro(v.line)) continue;
+        nextById.set(v.id, {
+          lat: v.lat,
+          lon: v.lon,
+          heading: v.heading || 0,
+          speed: v.speed,
+        });
+      }
+      applyPollUpdate(
+        motionStatesRef.current,
+        nextById,
+        now,
+        pollIntervalMsRef.current
+      );
+      setVehicles(mergeCalibratedVehicles(feed, now));
+      if (mapZoomRef.current >= 14) startMotionLoop();
+    },
+    [mergeCalibratedVehicles, startMotionLoop]
+  );
+
   /** Silent background poll — no spinner / countdown UI. */
   const fetchVehicles = useCallback(async (opts?: { manual?: boolean }) => {
     const manual = !!opts?.manual;
@@ -807,7 +913,7 @@ export default function BusMap() {
       const res = await fetch("/api/vehicles", { cache: "no-store" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data: ApiResponse = await res.json();
-      setVehicles(data.vehicles);
+      applyFeedVehicles(data.vehicles);
       setIsLive(true);
       setError(null);
     } catch (err: unknown) {
@@ -818,22 +924,41 @@ export default function BusMap() {
       setRefreshing(false);
       pollInFlightRef.current = false;
     }
-  }, []);
+  }, [applyFeedVehicles]);
+
+  const armVehiclePoll = useCallback(() => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    const hidden =
+      typeof document !== "undefined" &&
+      document.visibilityState === "hidden";
+    const ms = hidden ? REFRESH_MS_HIDDEN : REFRESH_MS_VISIBLE;
+    pollIntervalMsRef.current = ms;
+    intervalRef.current = setInterval(() => {
+      void fetchVehicles();
+    }, ms);
+  }, [fetchVehicles]);
 
   useEffect(() => {
     fetchVehicles();
-    intervalRef.current = setInterval(fetchVehicles, REFRESH_MS);
+    armVehiclePoll();
 
     const onVis = () => {
-      if (document.visibilityState === "visible") fetchVehicles();
+      armVehiclePoll();
+      if (document.visibilityState === "visible") {
+        void fetchVehicles();
+        startMotionLoop();
+      } else {
+        stopMotionLoop();
+      }
     };
     document.addEventListener("visibilitychange", onVis);
 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
       document.removeEventListener("visibilitychange", onVis);
+      stopMotionLoop();
     };
-  }, [fetchVehicles]);
+  }, [fetchVehicles, armVehiclePoll, startMotionLoop, stopMotionLoop]);
 
   const officialRouteIds = useMemo(
     () => new Set(officialRoutes.map((r) => r.id.replace(/\s+/g, "").toUpperCase())),

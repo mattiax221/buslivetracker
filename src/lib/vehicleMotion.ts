@@ -139,7 +139,8 @@ export function applyPollUpdate(
   durationMs: number
 ): void {
   const alive = new Set(nextById.keys());
-  const glideMs = Math.max(3000, Math.min(durationMs, 8500));
+  // Glide almost until the next poll so dots feel continuous, not jumpy
+  const glideMs = Math.max(900, Math.min(Math.round(durationMs * 0.92), 6000));
 
   for (const [id, sample] of nextById) {
     const prev = states.get(id);

@@ -13,6 +13,15 @@ export type RoadmapItem = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.14",
+    date: "2026-10-30",
+    title: "GPS mezzi più reattivo",
+    items: [
+      "Poll posizioni ogni 3s con app aperta (15s in background)",
+      "Calibrazione pallini: filtra jitter da fermo e scorrimento fluido tra un GPS e il successivo",
+    ],
+  },
+  {
     version: "0.3.13",
     date: "2026-10-30",
     title: "Indicazioni percorso sulla mappa",
