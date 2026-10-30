@@ -252,12 +252,18 @@ export default function UpdatesPageClient() {
                   <Rocket className="w-4 h-4 text-[#0B5FFF]" />
                   <span
                     className={`text-[10px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded ${
-                      item.status === "soon"
-                        ? "bg-emerald-50 text-emerald-700"
-                        : "bg-slate-100 text-slate-600"
+                      item.status === "done"
+                        ? "bg-blue-50 text-[#0B5FFF]"
+                        : item.status === "soon"
+                          ? "bg-emerald-50 text-emerald-700"
+                          : "bg-slate-100 text-slate-600"
                     }`}
                   >
-                    {item.status === "soon" ? "In arrivo" : "In studio"}
+                    {item.status === "done"
+                      ? "Fatto"
+                      : item.status === "soon"
+                        ? "In arrivo"
+                        : "In studio"}
                   </span>
                 </div>
                 <h2 className="font-black text-sm">{item.title}</h2>

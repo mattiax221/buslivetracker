@@ -6,12 +6,21 @@ export type ChangelogEntry = {
 };
 
 export type RoadmapItem = {
-  status: "soon" | "exploring";
+  status: "soon" | "exploring" | "done";
   title: string;
   detail: string;
 };
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "0.3.2",
+    date: "2026-10-30",
+    title: "GPS più veloce e Preferiti utili",
+    items: [
+      "Apertura sulla tua ultima posizione (senza aspettare il GPS)",
+      "Preferiti: arrivi live, distanza, mezzi in diretta, azioni rapide",
+    ],
+  },
   {
     version: "0.3.1",
     date: "2026-10-30",
@@ -49,6 +58,16 @@ export const CHANGELOG: ChangelogEntry[] = [
 
 export const ROADMAP: RoadmapItem[] = [
   {
+    status: "done",
+    title: "GPS all’apertura più rapido",
+    detail: "Cache ultima posizione + fix coarse subito, poi precisione alta.",
+  },
+  {
+    status: "done",
+    title: "Preferiti con contesto live",
+    detail: "Arrivi, distanza e conteggio mezzi sulle linee salvate.",
+  },
+  {
     status: "soon",
     title: "Avvisi smart su linea / fermata",
     detail:
@@ -56,9 +75,13 @@ export const ROADMAP: RoadmapItem[] = [
   },
   {
     status: "soon",
-    title: "GPS utente più stabile",
-    detail:
-      "Meno jitter da fermo e centratura più naturale mentre cammini.",
+    title: "Widget / scorciatoia “casa ↔ lavoro”",
+    detail: "Due fermate o linee fisse apribili in un tap dalla Home.",
+  },
+  {
+    status: "soon",
+    title: "Storico linee usate di recente",
+    detail: "Oltre ai preferiti, le ultime linee/fermate aperte senza salvarle.",
   },
   {
     status: "exploring",
@@ -69,5 +92,10 @@ export const ROADMAP: RoadmapItem[] = [
     status: "exploring",
     title: "Modalità offline base",
     detail: "Fermate e linee consultabili anche senza rete (senza live GPS).",
+  },
+  {
+    status: "exploring",
+    title: "Condivisione fermata con countdown",
+    detail: "Link o messaggio con i prossimi arrivi già formattati.",
   },
 ];

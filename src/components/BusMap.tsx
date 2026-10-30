@@ -64,6 +64,10 @@ import {
   type MotionSample,
   type VehicleMotionState,
 } from "../lib/vehicleMotion";
+import {
+  readCachedUserLocation,
+  writeCachedUserLocation,
+} from "../lib/userLocationCache";
 
 /* ── Types ── */
 interface Vehicle {
@@ -384,59 +388,89 @@ function MapController({
   const [userAccuracy, setUserAccuracy] = useState<number>(20);
   const hasCenteredUserRef = useRef(false);
 
+  const centerOnUser = useCallback(
+    (lat: number, lon: number, instant: boolean) => {
+      if (hasCenteredUserRef.current) return;
+      hasCenteredUserRef.current = true;
+      const biasY = (MAP_CHROME_PAD.top - MAP_CHROME_PAD.bottom) / 2;
+      if (instant) {
+        map.setView([lat, lon], 16, { animate: false });
+        map.panBy([0, biasY], { animate: false });
+      } else {
+        map.setView([lat, lon], 16, { animate: true, duration: 0.35 });
+        map.once("moveend", () => {
+          map.panBy([0, biasY], { animate: true, duration: 0.15 });
+        });
+      }
+    },
+    [map]
+  );
+
   useEffect(() => {
     if (typeof window === "undefined" || !("geolocation" in navigator)) {
       onLocationDenied?.();
       return;
     }
 
-    const handlePos = (pos: GeolocationPosition) => {
+    // Instant start from last known position (no GPS wait)
+    const cached = readCachedUserLocation();
+    if (cached) {
+      setUserPos([cached.lat, cached.lon]);
+      if (cached.accuracy) setUserAccuracy(Math.min(cached.accuracy, 120));
+      onLocationFound(cached.lat, cached.lon);
+      centerOnUser(cached.lat, cached.lon, true);
+    }
+
+    const handlePos = (pos: GeolocationPosition, refineOnly = false) => {
       const { latitude, longitude, accuracy } = pos.coords;
       setUserPos([latitude, longitude]);
-      setUserAccuracy(Math.min(accuracy, 120));
+      setUserAccuracy(Math.min(accuracy || 40, 120));
+      writeCachedUserLocation(latitude, longitude, accuracy);
       onLocationFound(latitude, longitude);
-      if (!hasCenteredUserRef.current) {
-        hasCenteredUserRef.current = true;
-        const biasY = (MAP_CHROME_PAD.top - MAP_CHROME_PAD.bottom) / 2;
-        map.flyTo([latitude, longitude], 16, { duration: 1.0 });
-        map.once("moveend", () => {
-          map.panBy([0, biasY], { animate: true, duration: 0.2 });
-        });
+      if (!refineOnly) {
+        centerOnUser(latitude, longitude, false);
+      } else if (!hasCenteredUserRef.current) {
+        centerOnUser(latitude, longitude, false);
       }
     };
 
     const handleErr = (err: GeolocationPositionError) => {
       console.warn("GPS notice:", err.message);
-      if (
-        err.code === err.PERMISSION_DENIED ||
-        err.code === err.POSITION_UNAVAILABLE
-      ) {
+      if (err.code === err.PERMISSION_DENIED) {
         onLocationDenied?.();
       }
     };
 
-    navigator.geolocation.getCurrentPosition(handlePos, handleErr, {
-      enableHighAccuracy: true,
-      timeout: 10000,
-      maximumAge: 0,
-    });
+    // Fast coarse fix first (often <1s), then high-accuracy watch
+    navigator.geolocation.getCurrentPosition(
+      (pos) => handlePos(pos, !!cached),
+      handleErr,
+      {
+        enableHighAccuracy: false,
+        timeout: 4000,
+        maximumAge: 60_000,
+      }
+    );
 
-    const watchId = navigator.geolocation.watchPosition(handlePos, handleErr, {
-      enableHighAccuracy: true,
-      timeout: 15000,
-      maximumAge: 2000,
-    });
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => handlePos(pos, true),
+      handleErr,
+      {
+        enableHighAccuracy: true,
+        timeout: 12000,
+        maximumAge: 3000,
+      }
+    );
 
     return () => navigator.geolocation.clearWatch(watchId);
-  }, [map, onLocationFound, onLocationDenied]);
+  }, [map, onLocationFound, onLocationDenied, centerOnUser]);
 
   useEffect(() => {
     if (!flyToCoords) return;
-    // Bias center downward so the point sits clear of top chrome on phones
     const biasY = (MAP_CHROME_PAD.top - MAP_CHROME_PAD.bottom) / 2;
-    map.flyTo(flyToCoords, 17, { duration: 0.9 });
+    map.setView(flyToCoords, 17, { animate: true, duration: 0.35 });
     const onEnd = () => {
-      map.panBy([0, biasY], { animate: true, duration: 0.25 });
+      map.panBy([0, biasY], { animate: true, duration: 0.15 });
       map.off("moveend", onEnd);
     };
     map.on("moveend", onEnd);
@@ -456,10 +490,8 @@ function MapController({
     zoomend: (e) => onBoundsChange(e.target.getBounds()),
     locationfound: (e) => {
       setUserPos([e.latlng.lat, e.latlng.lng]);
-      if (!hasCenteredUserRef.current) {
-        hasCenteredUserRef.current = true;
-        map.flyTo(e.latlng, 16, { duration: 1.2 });
-      }
+      writeCachedUserLocation(e.latlng.lat, e.latlng.lng, e.accuracy);
+      centerOnUser(e.latlng.lat, e.latlng.lng, false);
       onLocationFound(e.latlng.lat, e.latlng.lng);
     },
   });
@@ -535,6 +567,32 @@ export default function BusMap() {
   const [geoHintVisible, setGeoHintVisible] = useState(false);
   const [mapBounds, setMapBounds] = useState<L.LatLngBounds | null>(null);
   const [showEstimated, setShowEstimated] = useState(true);
+
+  const mapBoot = useMemo(() => {
+    const cached = readCachedUserLocation();
+    if (cached) {
+      return { center: [cached.lat, cached.lon] as [number, number], zoom: 16 };
+    }
+    return { center: TORINO_CENTER, zoom: 14 };
+  }, []);
+
+  const liveLineCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const v of vehicles) {
+      const key = normalizeLine(v.line);
+      counts[key] = (counts[key] || 0) + 1;
+      counts[v.line] = (counts[v.line] || 0) + 1;
+    }
+    return counts;
+  }, [vehicles]);
+
+  const stopCoordsByCode = useMemo(() => {
+    const map: Record<string, { lat: number; lon: number }> = {};
+    for (const s of allStops) {
+      map[s.c] = { lat: s.lat, lon: s.lon };
+    }
+    return map;
+  }, [allStops]);
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -1124,8 +1182,8 @@ export default function BusMap() {
     <div className="relative w-full h-full overflow-hidden bg-slate-100">
       {/* Map — full bleed */}
       <MapContainer
-        center={TORINO_CENTER}
-        zoom={14}
+        center={mapBoot.center}
+        zoom={mapBoot.zoom}
         className="w-full h-full"
         zoomControl={false}
         attributionControl={true}
@@ -1361,6 +1419,10 @@ export default function BusMap() {
             onClose={closeSheet}
             savedLines={savedLines}
             savedStops={savedStops}
+            userCoords={userCoords}
+            liveLineCounts={liveLineCounts}
+            stopCoordsByCode={stopCoordsByCode}
+            onLocateMe={handleLocate}
             onToggleLineFavorite={handleToggleLineFavorite}
             onToggleStopFavorite={handleToggleStopFavorite}
             onSelectLine={(line) => {
