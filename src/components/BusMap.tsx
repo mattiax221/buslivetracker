@@ -1078,6 +1078,19 @@ export default function BusMap() {
     [allStops, handleSelectStop]
   );
 
+  // Deep links /?stop= /?line= (notification click, share)
+  useEffect(() => {
+    if (typeof window === "undefined" || allStops.length === 0) return;
+    const params = new URLSearchParams(window.location.search);
+    const stopCode = params.get("stop");
+    const line = params.get("line");
+    if (!stopCode && !line) return;
+    if (stopCode) handleSelectStopByCode(stopCode);
+    else if (line) handleToggleLine(line);
+    window.history.replaceState({}, "", "/");
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- apply once when stops load
+  }, [allStops.length]);
+
   useEffect(() => {
     if (!geoDenied) return;
     setGeoHintVisible(true);

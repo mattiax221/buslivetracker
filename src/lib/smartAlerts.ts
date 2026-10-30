@@ -14,7 +14,9 @@ export type SmartAlertVehicle = {
   lat: number;
   lon: number;
   line: string;
+  speed?: number;
   isEstimated?: boolean;
+  isSimulated?: boolean;
 };
 
 function readCooldown(): Record<string, number> {

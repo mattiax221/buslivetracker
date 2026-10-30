@@ -7,6 +7,7 @@ import {
   syncSmartAlertPrefs,
   type SmartAlertVehicle,
 } from "../lib/smartAlerts";
+import { checkGpsApproachToWatchedStops } from "../lib/gpsStopWatch";
 
 const INTERVAL_MS = 50_000;
 
@@ -23,6 +24,22 @@ export default function SmartAlertsRunner({
 }) {
   const vehiclesRef = useRef(vehicles);
   vehiclesRef.current = vehicles;
+
+  // GPS→fermata watch: run on every vehicle list change (already polled)
+  useEffect(() => {
+    if (document.visibilityState !== "visible") return;
+    void checkGpsApproachToWatchedStops(
+      vehicles.map((v) => ({
+        id: v.id,
+        lat: v.lat,
+        lon: v.lon,
+        line: v.line,
+        speed: v.speed ?? 0,
+        isEstimated: v.isEstimated,
+        isSimulated: v.isSimulated,
+      }))
+    );
+  }, [vehicles]);
 
   useEffect(() => {
     let cancelled = false;

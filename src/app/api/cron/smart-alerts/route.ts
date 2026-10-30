@@ -6,9 +6,6 @@ import {
   type PushSubJSON,
 } from "../../../../lib/push";
 
-export const dynamic = "force-dynamic";
-export const maxDuration = 60;
-
 type PrefRow = {
   endpoint: string;
   keys: { p256dh: string; auth: string };

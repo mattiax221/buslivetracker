@@ -1,7 +1,22 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { X, RefreshCw, Clock, Radio, Bus, TramFront as Tram, Star, Share2 } from "lucide-react";
+import {
+  X,
+  RefreshCw,
+  Clock,
+  Radio,
+  Bus,
+  TramFront as Tram,
+  Star,
+  Share2,
+  Radar,
+} from "lucide-react";
+import {
+  isStopWatched,
+  unwatchStop,
+  watchStop,
+} from "../lib/gpsStopWatch";
 
 interface StopArrival {
   line: string;
@@ -48,6 +63,8 @@ export default function StopBottomSheet({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastRefreshed, setLastRefreshed] = useState<string>("");
+  const [gpsWatchOn, setGpsWatchOn] = useState(false);
+  const [watchMsg, setWatchMsg] = useState<string | null>(null);
 
   const fetchArrivals = useCallback(async (code: string) => {
     setLoading(true);
@@ -74,13 +91,66 @@ export default function StopBottomSheet({
   useEffect(() => {
     if (!stop?.code) {
       setArrivals([]);
+      setGpsWatchOn(false);
+      setWatchMsg(null);
       return;
     }
+    setGpsWatchOn(isStopWatched(stop.code));
+    setWatchMsg(null);
     fetchArrivals(stop.code);
 
     const interval = setInterval(() => fetchArrivals(stop.code), 20000);
     return () => clearInterval(interval);
   }, [stop?.code, fetchArrivals]);
+
+  // Keep line filter fresh while watching
+  useEffect(() => {
+    if (!stop || !gpsWatchOn || arrivals.length === 0) return;
+    const lines = [
+      ...new Set(arrivals.slice(0, 8).map((a) => a.line).filter(Boolean)),
+    ];
+    if (lines.length === 0) return;
+    watchStop({
+      code: stop.code,
+      name: stop.name,
+      lat: stop.lat,
+      lon: stop.lon,
+      lines,
+    });
+  }, [arrivals, gpsWatchOn, stop]);
+
+  const toggleGpsWatch = async () => {
+    if (!stop) return;
+    if (gpsWatchOn) {
+      unwatchStop(stop.code);
+      setGpsWatchOn(false);
+      setWatchMsg("Avviso GPS disattivato per questa fermata.");
+      return;
+    }
+    if (typeof Notification !== "undefined" && Notification.permission === "default") {
+      await Notification.requestPermission();
+    }
+    if (typeof Notification !== "undefined" && Notification.permission !== "granted") {
+      setWatchMsg("Serve il permesso notifiche (Aggiornamenti → Notifiche).");
+      return;
+    }
+    const lines = [
+      ...new Set(arrivals.slice(0, 8).map((a) => a.line).filter(Boolean)),
+    ];
+    watchStop({
+      code: stop.code,
+      name: stop.name,
+      lat: stop.lat,
+      lon: stop.lon,
+      lines: lines.length ? lines : undefined,
+    });
+    setGpsWatchOn(true);
+    setWatchMsg(
+      lines.length
+        ? `Ok: ti avviso quando un mezzo GPS delle linee ${lines.slice(0, 4).join(", ")} si avvicina (non sull’orario). Max 2 fermate.`
+        : "Ok: ti avviso quando un mezzo GPS si avvicina a questa palina."
+    );
+  };
 
   if (!stop) return null;
 
@@ -160,6 +230,28 @@ export default function StopBottomSheet({
               <X className="w-5 h-5" />
             </button>
           </div>
+        </div>
+
+        <div className="px-4 pt-2.5 pb-1">
+          <button
+            type="button"
+            onClick={() => void toggleGpsWatch()}
+            className={`w-full flex items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-bold border ${
+              gpsWatchOn
+                ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                : "bg-slate-50 border-slate-200 text-slate-800"
+            }`}
+          >
+            <Radar className="w-3.5 h-3.5" />
+            {gpsWatchOn
+              ? "Avviso GPS attivo — tocca per spegnere"
+              : "Avvisami al GPS (mezzo in avvicinamento)"}
+          </button>
+          {watchMsg && (
+            <p className="text-[10px] text-slate-500 mt-1.5 leading-snug px-0.5">
+              {watchMsg}
+            </p>
+          )}
         </div>
 
         {/* Arrivals list */}
