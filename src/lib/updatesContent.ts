@@ -13,6 +13,15 @@ export type RoadmapItem = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.10",
+    date: "2026-10-30",
+    title: "Fix loop GPS che faceva impazzire Chrome",
+    items: [
+      "Il watcher GPS non si riavviava più a ogni render (loop infinito)",
+      "Scan fermate più vicine limitato e senza setState inutili",
+    ],
+  },
+  {
     version: "0.3.9",
     date: "2026-10-30",
     title: "Fix crash / kick fuori dall’app",

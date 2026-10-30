@@ -391,6 +391,11 @@ function MapController({
   const [userPos, setUserPos] = useState<[number, number] | null>(null);
   const [userAccuracy, setUserAccuracy] = useState<number>(20);
   const hasCenteredUserRef = useRef(false);
+  // Stable refs — parent callbacks change every render and MUST NOT restart GPS
+  const onLocationFoundRef = useRef(onLocationFound);
+  const onLocationDeniedRef = useRef(onLocationDenied);
+  onLocationFoundRef.current = onLocationFound;
+  onLocationDeniedRef.current = onLocationDenied;
 
   const centerOnUser = useCallback(
     (lat: number, lon: number, instant: boolean) => {
@@ -412,28 +417,49 @@ function MapController({
 
   useEffect(() => {
     if (typeof window === "undefined" || !("geolocation" in navigator)) {
-      onLocationDenied?.();
+      onLocationDeniedRef.current?.();
       return;
     }
+
+    let lastEmit = 0;
+    let lastLat = 0;
+    let lastLon = 0;
+
+    const emitLocation = (lat: number, lon: number, accuracy: number) => {
+      const now = performance.now();
+      const moved =
+        Math.abs(lat - lastLat) > 0.00005 || Math.abs(lon - lastLon) > 0.00005;
+      // Throttle parent updates — watchPosition can fire very often
+      if (!moved && now - lastEmit < 2000) return;
+      lastEmit = now;
+      lastLat = lat;
+      lastLon = lon;
+      setUserPos((prev) => {
+        if (
+          prev &&
+          Math.abs(prev[0] - lat) < 1e-6 &&
+          Math.abs(prev[1] - lon) < 1e-6
+        ) {
+          return prev;
+        }
+        return [lat, lon];
+      });
+      setUserAccuracy(Math.min(accuracy || 40, 120));
+      writeCachedUserLocation(lat, lon, accuracy);
+      onLocationFoundRef.current(lat, lon);
+    };
 
     // Instant start from last known position (no GPS wait)
     const cached = readCachedUserLocation();
     if (cached) {
-      setUserPos([cached.lat, cached.lon]);
-      if (cached.accuracy) setUserAccuracy(Math.min(cached.accuracy, 120));
-      onLocationFound(cached.lat, cached.lon);
+      emitLocation(cached.lat, cached.lon, cached.accuracy || 40);
       centerOnUser(cached.lat, cached.lon, true);
     }
 
     const handlePos = (pos: GeolocationPosition, refineOnly = false) => {
       const { latitude, longitude, accuracy } = pos.coords;
-      setUserPos([latitude, longitude]);
-      setUserAccuracy(Math.min(accuracy || 40, 120));
-      writeCachedUserLocation(latitude, longitude, accuracy);
-      onLocationFound(latitude, longitude);
-      if (!refineOnly) {
-        centerOnUser(latitude, longitude, false);
-      } else if (!hasCenteredUserRef.current) {
+      emitLocation(latitude, longitude, accuracy);
+      if (!refineOnly || !hasCenteredUserRef.current) {
         centerOnUser(latitude, longitude, false);
       }
     };
@@ -441,11 +467,10 @@ function MapController({
     const handleErr = (err: GeolocationPositionError) => {
       console.warn("GPS notice:", err.message);
       if (err.code === err.PERMISSION_DENIED) {
-        onLocationDenied?.();
+        onLocationDeniedRef.current?.();
       }
     };
 
-    // Fast coarse fix first (often <1s), then high-accuracy watch
     navigator.geolocation.getCurrentPosition(
       (pos) => handlePos(pos, !!cached),
       handleErr,
@@ -462,12 +487,13 @@ function MapController({
       {
         enableHighAccuracy: true,
         timeout: 12000,
-        maximumAge: 3000,
+        maximumAge: 5000,
       }
     );
 
     return () => navigator.geolocation.clearWatch(watchId);
-  }, [map, onLocationFound, onLocationDenied, centerOnUser]);
+    // Intentionally omit parent callbacks — use refs to avoid restart loops
+  }, [map, centerOnUser]);
 
   useEffect(() => {
     if (!flyToCoords) return;
@@ -1055,12 +1081,27 @@ export default function BusMap() {
     return () => clearTimeout(t);
   }, [geoDenied]);
 
+  const lastNearestScanRef = useRef(0);
+
   const handleLocationFound = useCallback(
     (lat: number, lon: number) => {
       setGeoDenied(false);
       setGeoHintVisible(false);
-      setUserCoords([lat, lon]);
+      setUserCoords((prev) => {
+        if (
+          prev &&
+          Math.abs(prev[0] - lat) < 1e-5 &&
+          Math.abs(prev[1] - lon) < 1e-5
+        ) {
+          return prev;
+        }
+        return [lat, lon];
+      });
       if (allStops.length === 0) return;
+
+      const now = performance.now();
+      if (now - lastNearestScanRef.current < 2500) return;
+      lastNearestScanRef.current = now;
 
       let closest: StopData | null = null;
       let minDis = Infinity;
@@ -1074,20 +1115,34 @@ export default function BusMap() {
       }
 
       if (closest && minDis <= 600) {
-        setNearestStop({
-          stop: {
-            code: closest.c,
-            name: closest.n,
-            desc: closest.d,
-            lat: closest.lat,
-            lon: closest.lon,
-          },
-          distance: minDis,
+        const rounded = Math.round(minDis);
+        setNearestStop((prev) => {
+          if (
+            prev &&
+            prev.stop.code === closest!.c &&
+            prev.distance === rounded
+          ) {
+            return prev;
+          }
+          return {
+            stop: {
+              code: closest!.c,
+              name: closest!.n,
+              desc: closest!.d,
+              lat: closest!.lat,
+              lon: closest!.lon,
+            },
+            distance: rounded,
+          };
         });
       }
     },
     [allStops]
   );
+
+  const handleLocationDenied = useCallback(() => {
+    setGeoDenied(true);
+  }, []);
 
   const handleShareVehicle = useCallback((v: Vehicle) => {
     const isM1 = isMetro(v.line);
@@ -1160,7 +1215,7 @@ export default function BusMap() {
           flyToCoords={flyToCoords}
           routeBounds={fitRouteTrigger}
           onLocationFound={handleLocationFound}
-          onLocationDenied={() => setGeoDenied(true)}
+          onLocationDenied={handleLocationDenied}
           onBoundsChange={handleBoundsChange}
           onZoomChange={handleZoomChange}
         />
