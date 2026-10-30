@@ -17,6 +17,7 @@ export interface Vehicle {
   statusDescription?: string;
   nextStation?: string;
   isEstimated?: boolean;
+  isSimulated?: boolean;
 }
 
 export async function GET() {

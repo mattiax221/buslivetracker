@@ -1,11 +1,9 @@
 /**
- * GTT Live Torino — Metro M1 Real-Time Engine (VAL 208)
+ * GTT Live Torino — Metro M1 timetable simulation (VAL 208)
  *
- * The Turin Metro M1 (VAL 208 automatic driverless light metro)
- * runs completely underground from Fermi (Collegno) to Bengasi (Turin South).
- * Since underground tunnels block satellite GPS, this engine calculates
- * real-time train positions, speed, bearing, and station dwell states
- * with sub-meter precision based on the official automated ATC timetable.
+ * Underground GPS is unavailable. This module approximates train positions
+ * from a headway/timetable model for map visualization only — it is NOT
+ * live ATC telemetry or official GTT real-time metro tracking.
  */
 
 export interface Vehicle {
@@ -19,6 +17,8 @@ export interface Vehicle {
   headsign?: string;
   statusDescription?: string;
   nextStation?: string;
+  /** Timetable simulation — not live GPS / ATC telemetry */
+  isSimulated?: boolean;
 }
 
 export interface MetroStation {
@@ -216,6 +216,7 @@ export function getMetroVehicles(date: Date = new Date()): Vehicle[] {
             headsign: state.headsign,
             statusDescription: state.statusDescription,
             nextStation: state.nextStation,
+            isSimulated: true,
           });
         }
       }

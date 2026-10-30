@@ -19,6 +19,7 @@ interface AlertsBottomSheetProps {
   onClose: () => void;
   selectedLine?: string;
   onSelectLine?: (line: string) => void;
+  hosted?: boolean;
 }
 
 export default function AlertsBottomSheet({
@@ -26,6 +27,7 @@ export default function AlertsBottomSheet({
   onClose,
   selectedLine,
   onSelectLine,
+  hosted = false,
 }: AlertsBottomSheetProps) {
   const [alerts, setAlerts] = useState<ServiceAlert[]>([]);
   const [loading, setLoading] = useState(false);
@@ -68,14 +70,7 @@ export default function AlertsBottomSheet({
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-[1200] flex flex-col justify-end">
-      <div
-        className="fixed inset-0 bg-black/40 transition-opacity"
-        onClick={onClose}
-        aria-hidden="true"
-      />
-
+  const panel = (
       <div className="relative bg-white rounded-t-3xl shadow-2xl max-h-[85vh] flex flex-col overflow-hidden pb-safe animate-in slide-in-from-bottom duration-200">
         {/* Handle */}
         <div className="w-full flex justify-center pt-2.5 pb-1" onClick={onClose}>
@@ -249,6 +244,18 @@ export default function AlertsBottomSheet({
           )}
         </div>
       </div>
+  );
+
+  if (hosted) return panel;
+
+  return (
+    <div className="fixed inset-0 z-[1100] flex flex-col justify-end">
+      <div
+        className="fixed inset-0 bg-black/40"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+      {panel}
     </div>
   );
 }

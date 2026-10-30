@@ -26,6 +26,8 @@ interface StopBottomSheetProps {
   isFavorite?: boolean;
   onToggleFavorite?: (stop: { code: string; name: string }) => void;
   onShareStop?: (data: { title: string; text: string; url: string }) => void;
+  /** Parent SheetHost owns backdrop */
+  hosted?: boolean;
 }
 
 function isTramLine(line: string): boolean {
@@ -40,6 +42,7 @@ export default function StopBottomSheet({
   isFavorite,
   onToggleFavorite,
   onShareStop,
+  hosted = false,
 }: StopBottomSheetProps) {
   const [arrivals, setArrivals] = useState<StopArrival[]>([]);
   const [loading, setLoading] = useState(false);
@@ -81,15 +84,8 @@ export default function StopBottomSheet({
 
   if (!stop) return null;
 
-  return (
-    <div className="fixed inset-x-0 bottom-0 z-[1100] transition-transform animate-in slide-in-from-bottom duration-200">
-      <div
-        className="fixed inset-0 bg-black/20 -z-10"
-        onClick={onClose}
-        aria-hidden="true"
-      />
-
-      <div className="bg-white rounded-t-3xl shadow-2xl border-t border-gray-100 max-h-[75vh] flex flex-col pb-safe">
+  const panel = (
+      <div className="bg-white rounded-t-3xl shadow-2xl border-t border-gray-100 max-h-[75vh] flex flex-col pb-safe animate-in slide-in-from-bottom duration-200">
         {/* Handle */}
         <div className="w-full flex justify-center pt-2.5 pb-1" onClick={onClose}>
           <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
@@ -174,8 +170,14 @@ export default function StopBottomSheet({
               <p className="text-xs">Ricerca passaggi in tempo reale...</p>
             </div>
           ) : error ? (
-            <div className="p-4 bg-red-50 text-red-600 rounded-xl text-xs text-center">
-              {error}
+            <div className="p-4 bg-amber-50 border border-amber-200 text-amber-950 rounded-xl text-xs text-center space-y-2">
+              <p className="font-semibold">{error}</p>
+              <button
+                onClick={() => stop?.code && fetchArrivals(stop.code)}
+                className="px-3 py-1.5 rounded-xl bg-amber-600 text-white font-bold active:scale-95"
+              >
+                Riprova
+              </button>
             </div>
           ) : arrivals.length === 0 ? (
             <div className="py-8 text-center text-gray-400 text-xs">
@@ -258,6 +260,18 @@ export default function StopBottomSheet({
           )}
         </div>
       </div>
+  );
+
+  if (hosted) return panel;
+
+  return (
+    <div className="fixed inset-x-0 bottom-0 z-[1100]">
+      <div
+        className="fixed inset-0 bg-black/20 -z-10"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+      {panel}
     </div>
   );
 }

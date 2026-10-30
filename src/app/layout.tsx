@@ -4,7 +4,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "GTT Live — Torino Bus & Tram Tracker",
   description:
-    "Mappa in tempo reale ad alta precisione dei bus, tram e metro GTT a Torino con tracciati e orari satellitari.",
+    "Mappa live dei bus e tram GTT a Torino. Fermate, avvisi e preferiti. Open source, senza account.",
   manifest: "/manifest.json",
   icons: {
     icon: "/favicon.png",
@@ -20,10 +20,10 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  maximumScale: 5,
+  userScalable: true,
   viewportFit: "cover",
-  themeColor: "#1e3a8a",
+  themeColor: "#0B5FFF",
 };
 
 export default function RootLayout({
@@ -36,7 +36,7 @@ export default function RootLayout({
       <head>
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
       </head>
-      <body className="antialiased overflow-hidden">{children}</body>
+      <body className="antialiased">{children}</body>
     </html>
   );
 }

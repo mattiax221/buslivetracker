@@ -1,122 +1,89 @@
-# 🚌 GTT Live Tracker — Torino Transit Real-Time PWA
+# GTT Live — Torino transit map (PWA)
 
-[![Next.js](https://img.shields.io/badge/Next.js-16.4-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind-4.0-38bdf8?style=for-the-badge&logo=tailwindcss)](https://tailwindcss.com/)
-[![Leaflet](https://img.shields.io/badge/Leaflet-1.9-199900?style=for-the-badge&logo=leaflet)](https://leafletjs.com/)
-[![PWA](https://img.shields.io/badge/PWA-Ready-orange?style=for-the-badge&logo=pwa)](https://web.dev/progressive-web-apps/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-emerald?style=for-the-badge)](LICENSE)
+Mobile-first Progressive Web App for **live GTT bus & tram positions** in Turin, plus stop arrivals, alerts, and favorites.
 
-Applicazione web progressiva (**PWA**) open-source, ultra-veloce e mobile-first per il tracciamento satellitare in tempo reale di **autobus, tram e metropolitana GTT a Torino**.
+Open source · no ads · no accounts.  
+Repo: [github.com/mattiax221/buslivetracker](https://github.com/mattiax221/buslivetracker)
 
-Sviluppata per offrire ai pendolari e ai cittadini torinesi un'esperienza superiore rispetto alle app tradizionali: zero pubblicità, zero POI commerciali invadenti, geolocalizzazione hardware ad alta precisione e navigazione rapida anche su smartphone economici.
+## What it does
 
----
+- **Live map** of bus/tram from the official GTT GTFS-RT vehicle positions feed
+- **Line / stop search** and route shapes on the map
+- **Stop arrivals** (live when available)
+- **Service alerts** from GTT
+- **Favorites** (lines & stops) stored in the browser
+- **Share** stop/vehicle info (WhatsApp / Telegram / system share)
+- **PWA** installable on phone (HTTPS required)
+- **[/aggiornamenti](/aggiornamenti)** — changelog, roadmap, anonymous suggestion board, Web Push test
 
-## ✨ Funzionalità Principali
+## What it does *not* claim
 
-### 📡 1. Live Tracking GPS Satellitare (Bus & Tram)
-- Monitoraggio in tempo reale di oltre **400 veicoli contemporaneamente** tramite il feed ufficiale GTT GTFS-RT.
-- Frequenza di aggiornamento rapida (**ogni 5 secondi**) con pillola di sincronizzazione a larghezza fissa (zero jitter o scatti visivi).
-- Culling dinamico della viewport per garantire **60 FPS stabili** e zero lag anche su dispositivi mobili con risorse limitate.
+| Feature | Reality |
+| --- | --- |
+| Metro M1 markers | **Simulated** from a timetable model (no GPS underground) |
+| Amber “stimato” markers | Position **estimated** from schedules when GPS is missing |
+| Metro elevators sheet | **Static reference** data, not live ATC |
+| Trip planner / AI / commute alarms | Removed — not shipped in this version |
 
-### 🚇 2. Motore Real-Time Metro M1 (VAL 208)
-- Simulazione ad altissima precisione dei convogli automatici VAL 208 lungo le **23 stazioni** della linea M1 (da *Fermi* a *Bengasi*).
-- 16-18 treni in ora di punta e 12 in morbida, con calcolo in tempo reale di velocità (~42-55 km/h), sosta in banchina (20s) e direzione.
+Independent project, not affiliated with GTT.
 
-### ⏱️ 3. Motore di Stima Posizione da Tabella Orari (Mezzi senza GPS)
-- Per i mezzi e le corse sprovvisti di transponder GPS attivo, il sistema calcola la **posizione stimata in tempo reale** lungo il tracciato basandosi sulle tabelle orari e frequenze ufficiali GTT.
-- **Deduplicazione Spaziale**: se un bus con GPS reale è già presente entro 1.300 metri, la stima evita doppioni.
-- Distinzione visiva trasparente con badge tratteggiato ambra ed etichetta `⏱️ Posizione Stimata da Orari`.
+## Stack
 
-### 🗺️ 4. Trip Planner Multi-Modale "Da A a B" (Google Maps Style)
-- Inserisci punto di partenza (o usa **`[ 📍 La mia posizione attuale ]`** con un tap) e punto di arrivo (con mete frequenti: *Porta Nuova, Porta Susa, Politecnico, Molinette, Lingotto, ecc.*).
-- Calcola itinerari multi-modale (**Piedi + Bus + Tram + Metro M1**), sia diretti che con cambio negli hub principali.
-- **Integrazione Live**: segnala se il mezzo è in arrivo alla fermata di salita (`🟢 Mezzo in arrivo tra X min!`).
-- Tracciamento visivo su mappa con tratte a piedi tratteggiate in blu e tratte sui mezzi con linea continua colorata ad alto contrasto.
+- Next.js (App Router) · TypeScript · Tailwind CSS v4
+- Leaflet / react-leaflet · GTFS-RT · `web-push`
 
-### 🔔 5. Sveglia Pendolare & Notifiche Push in Background (PWA)
-- Imposta sveglie personalizzate per le tue linee e fermate abituali (con fasce orarie e giorni della settimana Lun-Ven).
-- Sintesi sonora a due toni (*transit chime*) via **Web Audio API** (senza file audio esterni pesanti) e vibrazione tattile.
-- **Service Worker (`sw.js`)**: ricevi le notifiche push sul telefono anche con **schermo spento o browser chiuso**.
+## Local run
 
-### 📲 6. Condivisione Rapida (WhatsApp, Telegram & Web Share)
-- Condividi in 1 tap su **WhatsApp**, **Telegram** o appunti la posizione del bus, gli orari della fermata o l'itinerario calcolato, con testo precompilato e link diretto.
+```bash
+npm install
+npm run dev
+```
 
-### ♿ 7. Accessibilità, Ascensori e Scale Mobili Metro M1
-- Monitoraggio dello stato operativo di ascensori (Piano Strada ↔ Atrio, Atrio ↔ Banchina Fermi, Atrio ↔ Banchina Bengasi), scale mobili, percorsi tattili Loges e citofoni SOS per tutte le 23 stazioni.
+Open [http://localhost:3000](http://localhost:3000).
 
-### 🎨 8. Stili Mappa Multipli (Inclusa Dark AMOLED)
-- Quattro stili mappa selezionabili con un tap:
-  - **Esri Clean Street** (Mappa pulita ad alto contrasto senza bar/negozi)
-  - **Minimal Light** (Mappa chiara sobria per risalto dei percorsi)
-  - **Dark AMOLED** (Mappa notturna su asfalto scuro con linee neon ad alto impatto)
-  - **OpenStreetMap** (Mappa classica topografica)
+### Optional env (suggestions + push)
 
----
+Copy [`.env.example`](.env.example) to `.env.local`.
 
-## 🛠️ Stack Tecnologico
+1. **KV** (Upstash Redis or Vercel KV) — persists suggestion board & push subscriptions  
+   - `KV_REST_API_URL`  
+   - `KV_REST_API_TOKEN`  
 
-- **Framework**: [Next.js 16](https://nextjs.org/) (App Router, Turbopack)
-- **Linguaggio**: [TypeScript](https://www.typescriptlang.org/)
-- **Mappe**: [Leaflet](https://leafletjs.com/) & [React-Leaflet](https://react-leaflet.js.org/)
-- **Styling**: [Tailwind CSS v4](https://tailwindcss.com/)
-- **Icone**: [Lucide React](https://lucide.dev/)
-- **Protocollo Dati**: [gtfs-realtime-bindings](https://www.npmjs.com/package/gtfs-realtime-bindings) (Protocol Buffers GTFS-RT)
-- **Audio & Tattile**: Web Audio API & Vibration API
-- **Offline & Push**: Service Worker PWA con Cache API
+   Without KV, suggestions work in-memory on that server instance only (ok for local try).
 
----
+2. **Web Push VAPID**
 
-## 🚀 Come Eseguire in Locale
+```bash
+npm run vapid
+```
 
-### Prerequisiti
-- [Node.js](https://nodejs.org/) versione 18.18 o superiore
-- npm, pnpm o yarn
+Paste the printed keys into `.env.local` / Vercel:
 
-### Installazione
+- `NEXT_PUBLIC_VAPID_PUBLIC_KEY`
+- `VAPID_PRIVATE_KEY`
+- `VAPID_SUBJECT` (e.g. `mailto:you@example.com`)
 
-1. Clona il repository:
-   ```bash
-   git clone https://github.com/mattiax221/buslivetracker.git
-   cd buslivetracker
-   ```
+Then open **Aggiornamenti → Notifiche** → Attiva → Invia prova.
 
-2. Installa le dipendenze:
-   ```bash
-   npm install
-   ```
+On iPhone: install the PWA to Home Screen (iOS 16.4+) for push to work.
 
-3. Avvia il server di sviluppo:
-   ```bash
-   npm run dev
-   ```
+## Deploy (Vercel)
 
-4. Apri [http://localhost:3000](http://localhost:3000) nel browser (o dal telefono collegato alla stessa rete WiFi locale).
+Connect the GitHub repo, set the env vars above, deploy. HTTPS is required for GPS and push.
 
----
+## Privacy (short)
 
-## ☁️ Deploy su Vercel (1-Click)
+- GPS stays on-device for map / nearest stop
+- Suggestions are anonymous (no account); stored in your KV if configured
+- Push subscriptions are device endpoints only
+- Details: **Altro → Info & Privacy**
 
-Il modo più rapido e gratuito per pubblicare online la PWA con certificato HTTPS e dominio personalizzato:
+## Credits
 
-1. Vai su [Vercel](https://vercel.com/) ed effettua il login con il tuo account GitHub.
-2. Clicca su **Add New...** -> **Project**.
-3. Seleziona il repository **`buslivetracker`**.
-4. Clicca su **Deploy**.
-5. In circa 60 secondi il tuo tracker sarà pubblico online e installabile su qualsiasi smartphone Android e iOS!
+- Vehicle positions & alerts: **GTT** open GTFS / GTFS-RT  
+- Map tiles: **Esri** World Street Map  
+- Stops / shapes: public transit datasets  
 
----
+## License
 
-## 📊 Fonti Dati & Ringraziamenti
-
-- **GTT — Gruppo Torinese Trasporti**: Open Data GTFS & Feed Real-Time GTFS-RT (Posizione veicoli, avvisi e deviazioni).
-- **Comune di Torino & Open Data Piemonte**: dataset fermate e percorsi di rete.
-- **OpenStreetMap & Esri**: dati geografici e tile cartografici.
-- **CARTO**: Dark Matter base maps.
-
----
-
-## 📄 Licenza
-
-Rilasciato sotto licenza [MIT](LICENSE). Libero per uso personale, didattico e contributi open-source.
+[MIT](LICENSE)

@@ -19,12 +19,14 @@ interface MetroAccessibilitySheetProps {
   isOpen: boolean;
   onClose: () => void;
   onFocusStation?: (stationCode: string) => void;
+  hosted?: boolean;
 }
 
 export default function MetroAccessibilitySheet({
   isOpen,
   onClose,
   onFocusStation,
+  hosted = false,
 }: MetroAccessibilitySheetProps) {
   const [search, setSearch] = useState("");
   const [filterMode, setFilterMode] = useState<"all" | "warnings">("all");
@@ -56,10 +58,9 @@ export default function MetroAccessibilitySheet({
       s.elevators.atriumToBengasi === "OPERATIONAL"
   ).length;
 
-  return (
-    <div className="fixed inset-0 z-[1150] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
+  const panel = (
       <div
-        className="w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl border border-gray-100 flex flex-col max-h-[88vh] overflow-hidden animate-in slide-in-from-bottom duration-300"
+        className="w-full max-w-lg mx-auto bg-white rounded-t-3xl shadow-2xl border border-gray-100 flex flex-col max-h-[88vh] overflow-hidden animate-in slide-in-from-bottom duration-300"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -73,12 +74,12 @@ export default function MetroAccessibilitySheet({
                 <h3 className="font-black text-sm text-gray-900">
                   Accessibilità & Impianti Metro M1
                 </h3>
-                <span className="px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
-                  Live ATC
+                <span className="px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-700 text-[10px] font-bold">
+                  Riferimento
                 </span>
               </div>
               <p className="text-[11px] text-gray-500">
-                Stato in tempo reale ascensori e scale mobili delle 23 stazioni
+                Dati statici di riferimento — non aggiornati in tempo reale
               </p>
             </div>
           </div>
@@ -264,6 +265,16 @@ export default function MetroAccessibilitySheet({
           )}
         </div>
       </div>
+  );
+
+  if (hosted) return panel;
+
+  return (
+    <div
+      className="fixed inset-0 z-[1100] flex items-end justify-center bg-black/40 animate-in fade-in duration-200"
+      onClick={onClose}
+    >
+      <div onClick={(e) => e.stopPropagation()}>{panel}</div>
     </div>
   );
 }

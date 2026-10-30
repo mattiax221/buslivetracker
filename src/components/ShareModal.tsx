@@ -8,9 +8,10 @@ interface ShareModalProps {
   isOpen: boolean;
   onClose: () => void;
   data: ShareData | null;
+  hosted?: boolean;
 }
 
-export default function ShareModal({ isOpen, onClose, data }: ShareModalProps) {
+export default function ShareModal({ isOpen, onClose, data, hosted = false }: ShareModalProps) {
   const [copied, setCopied] = useState(false);
 
   if (!isOpen || !data) return null;
@@ -42,10 +43,9 @@ export default function ShareModal({ isOpen, onClose, data }: ShareModalProps) {
   const waUrl = getWhatsAppShareUrl(data);
   const tgUrl = getTelegramShareUrl(data);
 
-  return (
-    <div className="fixed inset-0 z-[1200] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
+  const panel = (
       <div
-        className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-in slide-in-from-bottom duration-300"
+        className="w-full max-w-md mx-auto bg-white rounded-t-3xl shadow-2xl border border-gray-100 overflow-hidden animate-in slide-in-from-bottom duration-300"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -144,6 +144,13 @@ export default function ShareModal({ isOpen, onClose, data }: ShareModalProps) {
           </div>
         </div>
       </div>
+  );
+
+  if (hosted) return panel;
+
+  return (
+    <div className="fixed inset-0 z-[1100] flex items-end justify-center bg-black/40 animate-in fade-in duration-200">
+      {panel}
     </div>
   );
 }
