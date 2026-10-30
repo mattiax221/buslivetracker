@@ -63,6 +63,8 @@ import {
   readCachedUserLocation,
   writeCachedUserLocation,
 } from "../lib/userLocationCache";
+import { pushRecentLine, pushRecentStop } from "../lib/recentHistory";
+import SmartAlertsRunner from "./SmartAlertsRunner";
 
 /* ── Types ── */
 interface Vehicle {
@@ -897,6 +899,7 @@ export default function BusMap() {
   const handleToggleLine = useCallback((rawLine: string) => {
     setSelectedDirection(null);
     setActiveVehicleRoute(null);
+    pushRecentLine(rawLine);
     const expanded = expandLineFilter(rawLine);
     setSelectedLines((prev) => {
       const next = new Set(prev);
@@ -1045,6 +1048,7 @@ export default function BusMap() {
   }, [selectedLines, activeVehicleRoute, lineShapes, selectedDirection]);
 
   const handleSelectStop = useCallback((stop: StopInfo) => {
+    pushRecentStop({ code: stop.code, name: stop.name });
     setSelectedStop(stop);
     setFlyToCoords([stop.lat, stop.lon]);
     setActiveSheet("stop");
@@ -1192,6 +1196,12 @@ export default function BusMap() {
 
   return (
     <div className="relative w-full h-full overflow-hidden bg-slate-100">
+      <SmartAlertsRunner
+        savedLines={savedLines}
+        savedStops={savedStops}
+        userCoords={userCoords}
+        vehicles={vehicles}
+      />
       {/* Map — full bleed */}
       <MapContainer
         center={mapBoot.center}

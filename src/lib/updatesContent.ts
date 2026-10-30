@@ -13,6 +13,15 @@ export type RoadmapItem = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.11",
+    date: "2026-10-30",
+    title: "Avvisi preferiti e ultime usate",
+    items: [
+      "Notifiche smart su fermate/linee preferite (leggere, con cooldown)",
+      "Ultime linee e fermate aperte in Preferiti",
+    ],
+  },
+  {
     version: "0.3.10",
     date: "2026-10-30",
     title: "Fix loop GPS che faceva impazzire Chrome",
@@ -141,20 +150,20 @@ export const ROADMAP: RoadmapItem[] = [
     detail: "Arrivi, distanza e conteggio mezzi sulle linee salvate.",
   },
   {
-    status: "soon",
+    status: "done",
     title: "Avvisi smart su linea / fermata",
     detail:
-      "Notifica quando il tuo bus preferito è in arrivo, riusando le push già attive.",
+      "Notifica sui preferiti: fermata ≤4 min, linea GPS vicino a te. Toggle in Aggiornamenti → Notifiche.",
+  },
+  {
+    status: "done",
+    title: "Ultime usate",
+    detail: "Linee e fermate aperte di recente in Preferiti (solo localStorage leggero).",
   },
   {
     status: "soon",
     title: "Casa ↔ lavoro in un tap",
     detail: "Due fermate o linee fisse (mattina/sera) apribili dalla Home.",
-  },
-  {
-    status: "soon",
-    title: "Ultime usate",
-    detail: "Le linee e fermate aperte di recente, senza doverle mettere nei preferiti.",
   },
   {
     status: "soon",

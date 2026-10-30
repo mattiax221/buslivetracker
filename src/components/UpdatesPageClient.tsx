@@ -19,6 +19,11 @@ import { CHANGELOG, ROADMAP } from "../lib/updatesContent";
 import { registerServiceWorker } from "../lib/pwa";
 import { subscribeDevicePush } from "../lib/pushClient";
 import type { Suggestion, SuggestionCategory } from "../lib/suggestions";
+import {
+  isSmartAlertsEnabled,
+  setSmartAlertsEnabled,
+  syncSmartAlertPrefs,
+} from "../lib/smartAlerts";
 
 export default function UpdatesPageClient() {
   const [tab, setTab] = useState<"log" | "next" | "ideas" | "push">("log");
@@ -36,6 +41,11 @@ export default function UpdatesPageClient() {
   const [pushStatus, setPushStatus] = useState<string | null>(null);
   const [pushBusy, setPushBusy] = useState(false);
   const [endpoint, setEndpoint] = useState<string | null>(null);
+  const [smartOn, setSmartOn] = useState(false);
+
+  useEffect(() => {
+    setSmartOn(isSmartAlertsEnabled());
+  }, []);
 
   const loadSuggestions = useCallback(async () => {
     setLoadingList(true);
@@ -436,6 +446,61 @@ export default function UpdatesPageClient() {
               >
                 Invia notifica di prova
               </button>
+
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-slate-900">
+                    Avvisi sui preferiti
+                  </p>
+                  <p className="text-[11px] text-slate-500 leading-snug">
+                    Fermata: mezzo entro 4 min. Linea: GPS entro ~450 m da te.
+                    Serve “Attiva notifiche” + preferiti salvati.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  aria-pressed={smartOn}
+                  onClick={() => {
+                    const next = !smartOn;
+                    setSmartOn(next);
+                    setSmartAlertsEnabled(next);
+                    try {
+                      const lines = JSON.parse(
+                        localStorage.getItem("gtt_fav_lines") || "[]"
+                      ) as string[];
+                      const stops = JSON.parse(
+                        localStorage.getItem("gtt_fav_stops") || "[]"
+                      ) as { code: string; name: string }[];
+                      void syncSmartAlertPrefs({
+                        enabled: next,
+                        lines: Array.isArray(lines) ? lines : [],
+                        stops: Array.isArray(stops) ? stops : [],
+                      });
+                    } catch {
+                      void syncSmartAlertPrefs({
+                        enabled: next,
+                        lines: [],
+                        stops: [],
+                      });
+                    }
+                    setPushStatus(
+                      next
+                        ? "Avvisi preferiti attivi. Controlla ogni ~50s con l’app aperta; cron ogni 5 min sulle fermate."
+                        : "Avvisi preferiti disattivati."
+                    );
+                  }}
+                  className={`w-11 h-6 rounded-full p-0.5 shrink-0 transition-colors ${
+                    smartOn ? "bg-[#0B5FFF]" : "bg-slate-300"
+                  }`}
+                >
+                  <span
+                    className={`block w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                      smartOn ? "translate-x-5" : "translate-x-0"
+                    }`}
+                  />
+                </button>
+              </div>
+
               {pushStatus && (
                 <p className="text-[11px] text-slate-600 text-center leading-relaxed">
                   {pushStatus}
