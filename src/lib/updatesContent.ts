@@ -13,6 +13,15 @@ export type RoadmapItem = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.4",
+    date: "2026-10-30",
+    title: "Mappa solo Torino, niente crash a zoom basso",
+    items: [
+      "Non si esce più dall’area urbana di Torino",
+      "A zoom largo pochi mezzi vicini, non tutta la flotta",
+    ],
+  },
+  {
     version: "0.3.3",
     date: "2026-10-30",
     title: "Meno lag e pagina Aggiornamenti scorrevole",

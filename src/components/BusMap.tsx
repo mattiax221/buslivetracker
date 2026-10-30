@@ -48,7 +48,10 @@ import { METRO_M1_ACCESSIBILITY } from "../lib/metroAccessibility";
 import {
   ActiveSheet,
   MAP_CHROME_PAD,
+  TORINO_BOUNDS,
   TORINO_CENTER,
+  TORINO_MIN_ZOOM,
+  markerBudget,
   expandLineFilter,
   getDistanceMeters,
   isMetro,
@@ -376,12 +379,14 @@ function MapController({
   onLocationFound,
   onLocationDenied,
   onBoundsChange,
+  onZoomChange,
 }: {
   flyToCoords: [number, number] | null;
   routeBounds: L.LatLngBoundsExpression | null;
   onLocationFound: (lat: number, lon: number) => void;
   onLocationDenied?: () => void;
   onBoundsChange: (bounds: L.LatLngBounds) => void;
+  onZoomChange?: (zoom: number) => void;
 }) {
   const map = useMap();
   const [userPos, setUserPos] = useState<[number, number] | null>(null);
@@ -487,7 +492,10 @@ function MapController({
 
   useMapEvents({
     moveend: (e) => onBoundsChange(e.target.getBounds()),
-    zoomend: (e) => onBoundsChange(e.target.getBounds()),
+    zoomend: (e) => {
+      onBoundsChange(e.target.getBounds());
+      onZoomChange?.(e.target.getZoom());
+    },
     locationfound: (e) => {
       setUserPos([e.latlng.lat, e.latlng.lng]);
       writeCachedUserLocation(e.latlng.lat, e.latlng.lng, e.accuracy);
@@ -497,8 +505,11 @@ function MapController({
   });
 
   useEffect(() => {
-    if (map) onBoundsChange(map.getBounds());
-  }, [map, onBoundsChange]);
+    if (map) {
+      onBoundsChange(map.getBounds());
+      onZoomChange?.(map.getZoom());
+    }
+  }, [map, onBoundsChange, onZoomChange]);
 
   if (!userPos) return null;
 
@@ -566,6 +577,7 @@ export default function BusMap() {
   const [geoDenied, setGeoDenied] = useState(false);
   const [geoHintVisible, setGeoHintVisible] = useState(false);
   const [mapBounds, setMapBounds] = useState<L.LatLngBounds | null>(null);
+  const [mapZoom, setMapZoom] = useState(14);
   const [showEstimated, setShowEstimated] = useState(true);
 
   const mapBoot = useMemo(() => {
@@ -620,6 +632,10 @@ export default function BusMap() {
 
   const handleBoundsChange = useCallback((b: L.LatLngBounds) => {
     setMapBounds(b);
+  }, []);
+
+  const handleZoomChange = useCallback((z: number) => {
+    setMapZoom(z);
   }, []);
 
   useEffect(() => {
@@ -906,11 +922,54 @@ export default function BusMap() {
       const match = allVehicles.find((v) => v.id === activeVehicleRoute.vehicleId);
       return match ? [match] : [];
     }
-    if (selectedLines.size > 0) return filteredVehicles;
-    if (!mapBounds) return allVehicles.slice(0, 60);
-    const padded = mapBounds.pad(0.12);
-    return allVehicles.filter((v) => padded.contains([v.lat, v.lon]));
-  }, [allVehicles, activeVehicleRoute, selectedLines, mapBounds, filteredVehicles]);
+
+    const [[south, west], [north, east]] = TORINO_BOUNDS;
+    const inTurin = (v: Vehicle) =>
+      v.lat >= south && v.lat <= north && v.lon >= west && v.lon <= east;
+
+    let list =
+      selectedLines.size > 0
+        ? filteredVehicles.filter(inTurin)
+        : allVehicles.filter(inTurin);
+
+    // City-wide view: skip schedule estimates, they double the icons
+    if (selectedLines.size === 0 && mapZoom < 15) {
+      list = list.filter((v) => !v.isEstimated);
+    }
+
+    if (selectedLines.size === 0 && mapBounds) {
+      const padded = mapBounds.pad(0.06);
+      list = list.filter((v) => padded.contains([v.lat, v.lon]));
+    }
+
+    const cap = markerBudget(mapZoom, selectedLines.size > 0);
+    if (list.length <= cap) return list;
+
+    const center = mapBounds?.getCenter();
+    if (!center) return list.slice(0, cap);
+    const clat = center.lat;
+    const clon = center.lng;
+    return list
+      .map((v) => ({
+        v,
+        d: (v.lat - clat) * (v.lat - clat) + (v.lon - clon) * (v.lon - clon),
+      }))
+      .sort((a, b) => a.d - b.d)
+      .slice(0, cap)
+      .map((x) => x.v);
+  }, [
+    allVehicles,
+    activeVehicleRoute,
+    selectedLines,
+    mapBounds,
+    mapZoom,
+    filteredVehicles,
+  ]);
+
+  const vehiclesCapped =
+    selectedLines.size === 0 &&
+    mapZoom < 15 &&
+    allVehicles.length > visibleVehicles.length;
 
   const handleToggleLine = useCallback((rawLine: string) => {
     setSelectedDirection(null);
@@ -1189,6 +1248,13 @@ export default function BusMap() {
       <MapContainer
         center={mapBoot.center}
         zoom={mapBoot.zoom}
+        minZoom={TORINO_MIN_ZOOM}
+        maxZoom={18}
+        maxBounds={TORINO_BOUNDS}
+        maxBoundsViscosity={1}
+        zoomAnimation={false}
+        fadeAnimation={false}
+        markerZoomAnimation={false}
         className="w-full h-full"
         zoomControl={false}
         attributionControl={true}
@@ -1208,6 +1274,7 @@ export default function BusMap() {
           onLocationFound={handleLocationFound}
           onLocationDenied={() => setGeoDenied(true)}
           onBoundsChange={handleBoundsChange}
+          onZoomChange={handleZoomChange}
         />
 
         {activeShapes.map((shape, idx) => {
@@ -1276,6 +1343,14 @@ export default function BusMap() {
           onSelectStop={(stop) => handleSelectStop(stop)}
         />
       </MapContainer>
+
+      {vehiclesCapped && (
+        <div className="absolute left-0 right-0 bottom-[5.75rem] z-[900] flex justify-center pointer-events-none px-4">
+          <p className="bg-slate-900/85 text-white text-[11px] font-semibold px-3 py-1.5 rounded-full shadow-lg">
+            Avvicina: a questa scala mostro solo i mezzi più vicini
+          </p>
+        </div>
+      )}
 
       {/* Top chrome column */}
       <div className="absolute top-0 left-0 right-0 z-[1000] pointer-events-none">

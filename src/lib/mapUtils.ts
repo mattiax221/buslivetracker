@@ -1,5 +1,23 @@
 export const TORINO_CENTER: [number, number] = [45.0703, 7.6869];
 
+/** Urban GTT area. The map cannot pan or zoom out past this. */
+export const TORINO_BOUNDS: [[number, number], [number, number]] = [
+  [44.9, 7.42],
+  [45.22, 7.88],
+];
+
+export const TORINO_MIN_ZOOM = 12;
+
+/** How many bus markers to draw. Low zoom = few icons, or the phone dies. */
+export function markerBudget(zoom: number, lineFiltered: boolean): number {
+  if (lineFiltered) return 80;
+  if (zoom >= 16) return 110;
+  if (zoom >= 15) return 64;
+  if (zoom >= 14) return 36;
+  if (zoom >= 13) return 18;
+  return 10;
+}
+
 export const TRAM_LINES = new Set([
   "3", "3/", "3B",
   "4", "4/", "4B",
