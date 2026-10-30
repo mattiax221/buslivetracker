@@ -103,7 +103,7 @@ export default function MapSearchPanel({
   return (
     <div className="mx-3 mt-2 pointer-events-none">
       <div className="pointer-events-auto">
-        <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-lg border border-slate-200/80 overflow-hidden">
+        <div className="gtt-chrome backdrop-blur-md rounded-2xl shadow-lg border overflow-hidden">
           <div className="flex items-center gap-2 px-3 py-2.5">
             <Search className="w-4 h-4 text-slate-400 shrink-0" />
             <input

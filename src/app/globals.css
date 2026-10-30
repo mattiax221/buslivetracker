@@ -4,6 +4,26 @@
   --gtt-blue: #0b5fff;
   --chrome-top: calc(env(safe-area-inset-top, 0px) + 4.25rem);
   --chrome-bottom: calc(env(safe-area-inset-bottom, 0px) + 4.5rem);
+  --app-bg: #e8eef5;
+  --app-fg: #0f172a;
+  --sheet-bg: #ffffff;
+  --sheet-fg: #0f172a;
+  --sheet-muted: #64748b;
+  --sheet-line: #e2e8f0;
+  --chrome-glass: rgba(255, 255, 255, 0.92);
+  --chrome-border: rgba(255, 255, 255, 0.6);
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --app-bg: #0b1220;
+  --app-fg: #e2e8f0;
+  --sheet-bg: #111827;
+  --sheet-fg: #f1f5f9;
+  --sheet-muted: #94a3b8;
+  --sheet-line: #1e293b;
+  --chrome-glass: rgba(15, 23, 42, 0.94);
+  --chrome-border: rgba(51, 65, 85, 0.85);
 }
 
 /* Map locks the page; other routes (aggiornamenti) must scroll */
@@ -19,8 +39,8 @@ body {
   overscroll-behavior-y: auto;
   -webkit-tap-highlight-color: transparent;
   -webkit-touch-callout: none;
-  color: #0f172a;
-  background: #e8eef5;
+  color: var(--app-fg);
+  background: var(--app-bg);
   touch-action: manipulation;
 }
 
@@ -53,7 +73,65 @@ body:has(.map-shell) {
   width: 100% !important;
   height: 100% !important;
   font-family: inherit;
-  background: #e8eef5;
+  background: var(--app-bg);
+}
+
+html[data-theme="dark"] .leaflet-control-attribution {
+  background: rgba(15, 23, 42, 0.9) !important;
+  color: #94a3b8 !important;
+}
+
+html[data-theme="dark"] .leaflet-popup-content-wrapper {
+  background: #111827 !important;
+  color: #e2e8f0 !important;
+  border-color: #1e293b !important;
+}
+
+html[data-theme="dark"] .leaflet-popup-tip {
+  background: #111827 !important;
+}
+
+/* Sheet / chrome helpers for night mode */
+.gtt-chrome {
+  background: var(--chrome-glass);
+  border-color: var(--chrome-border);
+  color: var(--app-fg);
+}
+
+.gtt-sheet {
+  background: var(--sheet-bg);
+  color: var(--sheet-fg);
+}
+
+html[data-theme="dark"] .gtt-sheet .border-gray-100,
+html[data-theme="dark"] .gtt-sheet .border-slate-100,
+html[data-theme="dark"] .gtt-sheet .border-slate-200 {
+  border-color: var(--sheet-line) !important;
+}
+
+html[data-theme="dark"] .gtt-sheet .bg-gray-50,
+html[data-theme="dark"] .gtt-sheet .bg-slate-50,
+html[data-theme="dark"] .gtt-sheet .bg-slate-50\/80 {
+  background-color: #1e293b !important;
+}
+
+html[data-theme="dark"] .gtt-sheet .text-gray-900,
+html[data-theme="dark"] .gtt-sheet .text-slate-900,
+html[data-theme="dark"] .gtt-sheet .text-gray-800,
+html[data-theme="dark"] .gtt-sheet .text-slate-800 {
+  color: #f1f5f9 !important;
+}
+
+html[data-theme="dark"] .gtt-sheet .text-gray-500,
+html[data-theme="dark"] .gtt-sheet .text-slate-500,
+html[data-theme="dark"] .gtt-sheet .text-gray-400,
+html[data-theme="dark"] .gtt-sheet .text-slate-400,
+html[data-theme="dark"] .gtt-sheet .text-slate-600 {
+  color: var(--sheet-muted) !important;
+}
+
+html[data-theme="dark"] .gtt-sheet .bg-white {
+  background-color: #1e293b !important;
 }
 
 .leaflet-fade-anim .leaflet-tile {

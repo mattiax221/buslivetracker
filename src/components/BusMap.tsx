@@ -79,6 +79,7 @@ import {
   tickMotions,
   type VehicleMotionState,
 } from "../lib/vehicleMotion";
+import { useNight } from "../hooks/useNight";
 
 /* ── Types ── */
 interface Vehicle {
@@ -636,6 +637,7 @@ export default function BusMap() {
   const [mapZoom, setMapZoom] = useState(14);
   const [showEstimated, setShowEstimated] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const night = useNight();
 
   const mapBoot = useMemo(() => {
     const cached = readCachedUserLocation();
@@ -1386,7 +1388,7 @@ export default function BusMap() {
       selectedLines.has("16CS"));
 
   return (
-    <div className="relative w-full h-full overflow-hidden bg-slate-100">
+    <div className="relative w-full h-full overflow-hidden" style={{ background: "var(--app-bg)" }}>
       <SmartAlertsRunner
         savedLines={savedLines}
         savedStops={savedStops}
@@ -1405,12 +1407,22 @@ export default function BusMap() {
         preferCanvas={true}
         ref={mapRef}
       >
-        <TileLayer
-          key="clean-style"
-          url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"
-          attribution='Tiles &copy; <a href="https://www.esri.com/">Esri</a> · Dati mezzi GTT'
-          maxZoom={19}
-        />
+        {night ? (
+          <TileLayer
+            key="dark-carto"
+            url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a> · GTT'
+            subdomains="abcd"
+            maxZoom={19}
+          />
+        ) : (
+          <TileLayer
+            key="light-esri"
+            url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"
+            attribution='Tiles &copy; <a href="https://www.esri.com/">Esri</a> · Dati mezzi GTT'
+            maxZoom={19}
+          />
+        )}
 
         <MapController
           flyToCoords={flyToCoords}

@@ -26,14 +26,17 @@ export const viewport: Viewport = {
   themeColor: "#0B5FFF",
 };
 
+const themeBoot = `(function(){try{var k='gtt.theme.v1';var v=localStorage.getItem(k);if(v!=='dark'&&v!=='light'){var h=new Date().getHours();v=(h>=19||h<7)?'dark':'light';}document.documentElement.setAttribute('data-theme',v);}catch(e){}})();`;
+
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <html lang="it">
+    <html lang="it" suppressHydrationWarning>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: themeBoot }} />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
       </head>
       <body className="antialiased">{children}</body>

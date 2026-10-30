@@ -13,7 +13,11 @@ import {
   Newspaper,
   RefreshCw,
   Route,
+  Moon,
+  Sun,
 } from "lucide-react";
+import { readTheme, toggleTheme } from "../lib/theme";
+import { useNight } from "../hooks/useNight";
 
 interface NearestStopInfo {
   stop: { code: string; name: string; lat: number; lon: number };
@@ -57,6 +61,7 @@ export default function MapBottomDock({
   const [menuOpen, setMenuOpen] = useState(false);
   const [legendOpen, setLegendOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const night = useNight();
 
   useEffect(() => {
     if (!menuOpen && !legendOpen) return;
@@ -113,7 +118,7 @@ export default function MapBottomDock({
         )}
 
         {legendOpen && (
-          <div className="bg-white rounded-2xl p-3.5 shadow-xl border border-slate-100 text-xs space-y-2.5 max-w-sm ml-auto">
+          <div className="gtt-sheet rounded-2xl p-3.5 shadow-xl border border-slate-100 text-xs space-y-2.5 max-w-sm ml-auto">
             <div className="flex items-center justify-between font-bold text-slate-900 border-b border-slate-100 pb-1.5">
               <span>Legenda</span>
               <button onClick={() => setLegendOpen(false)} className="text-slate-400 p-0.5">
@@ -167,7 +172,21 @@ export default function MapBottomDock({
         )}
 
         {menuOpen && !legendOpen && (
-          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden ml-auto w-[220px]">
+          <div className="gtt-sheet rounded-2xl shadow-xl border border-slate-100 overflow-hidden ml-auto w-[220px]">
+            <button
+              onClick={() => {
+                toggleTheme();
+                setMenuOpen(false);
+              }}
+              className="w-full flex items-center gap-2.5 px-3.5 py-3 text-left text-sm font-semibold text-slate-800 active:bg-slate-50 border-b border-slate-100"
+            >
+              {night || readTheme() === "dark" ? (
+                <Sun className="w-4 h-4 text-amber-400" />
+              ) : (
+                <Moon className="w-4 h-4 text-slate-600" />
+              )}
+              {night ? "Modalità giorno" : "Modalità notte"}
+            </button>
             <button
               onClick={() => {
                 setMenuOpen(false);
@@ -231,28 +250,28 @@ export default function MapBottomDock({
           </div>
         )}
 
-        <nav className="bg-white/92 backdrop-blur-xl rounded-2xl border border-white/60 shadow-[0_10px_40px_rgba(15,23,42,0.14)] flex items-stretch overflow-hidden">
+        <nav className="gtt-chrome backdrop-blur-xl rounded-2xl border shadow-[0_10px_40px_rgba(15,23,42,0.14)] flex items-stretch overflow-hidden">
           <button
             onClick={onLocate}
-            className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 active:scale-[0.97] active:bg-slate-50/80 text-slate-700 transition-transform"
+            className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 active:scale-[0.97] active:bg-black/5 transition-transform"
           >
             <LocateFixed className="w-5 h-5 text-[#0B5FFF]" />
             <span className="text-[10px] font-bold">Vicino</span>
           </button>
-          <div className="w-px bg-slate-200/80 my-2" />
+          <div className="w-px bg-black/10 my-2" />
           <button
             type="button"
             onClick={onOpenTrip}
-            className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 active:scale-[0.97] active:bg-blue-50/80 text-[#0B5FFF] transition-transform"
+            className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 active:scale-[0.97] active:bg-blue-500/10 text-[#0B5FFF] transition-transform"
             aria-label="Calcola percorso"
           >
             <Route className="w-5 h-5" />
             <span className="text-[10px] font-black">Percorso</span>
           </button>
-          <div className="w-px bg-slate-200/80 my-2" />
+          <div className="w-px bg-black/10 my-2" />
           <button
             onClick={onOpenFavorites}
-            className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 active:scale-[0.97] active:bg-slate-50/80 text-slate-700 relative transition-transform"
+            className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 active:scale-[0.97] active:bg-black/5 relative transition-transform"
           >
             <Star className="w-5 h-5 text-amber-500 fill-amber-500" />
             <span className="text-[10px] font-bold">Preferiti</span>
@@ -262,15 +281,15 @@ export default function MapBottomDock({
               </span>
             )}
           </button>
-          <div className="w-px bg-slate-200/80 my-2" />
+          <div className="w-px bg-black/10 my-2" />
           <button
             onClick={() => {
               setLegendOpen(false);
               setMenuOpen((v) => !v);
             }}
-            className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 active:scale-[0.97] active:bg-slate-50/80 text-slate-700 transition-transform"
+            className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 active:scale-[0.97] active:bg-black/5 transition-transform"
           >
-            <MoreHorizontal className="w-5 h-5 text-slate-600" />
+            <MoreHorizontal className="w-5 h-5 opacity-70" />
             <span className="text-[10px] font-bold">Altro</span>
           </button>
         </nav>

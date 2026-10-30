@@ -15,7 +15,7 @@ export default function MapTopChrome({
 }: MapTopChromeProps) {
   return (
     <header className="map-top-chrome pt-safe pointer-events-none chrome-enter">
-      <div className="pointer-events-auto mx-3 mt-2 flex items-center justify-between gap-2 rounded-2xl bg-white/92 backdrop-blur-xl border border-white/60 px-3 py-2 shadow-[0_8px_30px_rgba(15,23,42,0.12)]">
+      <div className="pointer-events-auto mx-3 mt-2 flex items-center justify-between gap-2 rounded-2xl gtt-chrome backdrop-blur-xl border px-3 py-2 shadow-[0_8px_30px_rgba(15,23,42,0.12)]">
         <div className="flex items-center gap-2.5 min-w-0">
           <div className="w-8 h-8 rounded-xl overflow-hidden bg-[#0B5FFF] shrink-0 shadow-sm shadow-blue-500/30">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -26,7 +26,7 @@ export default function MapTopChrome({
             />
           </div>
           <div className="min-w-0">
-            <div className="font-black text-slate-900 tracking-tight text-[15px] leading-none">
+            <div className="font-black tracking-tight text-[15px] leading-none">
               GTT Live
             </div>
             <div className="flex items-center gap-1.5 mt-0.5">
@@ -34,7 +34,7 @@ export default function MapTopChrome({
                 className={`live-dot ${isLive ? "live-dot--on" : "live-dot--off"}`}
                 aria-hidden
               />
-              <span className="text-[10px] font-semibold text-slate-500">
+              <span className="text-[10px] font-semibold opacity-60">
                 {isLive ? "In diretta" : "In collegamento…"}
               </span>
             </div>
@@ -43,7 +43,7 @@ export default function MapTopChrome({
 
         <button
           onClick={onOpenAlerts}
-          className="relative w-9 h-9 rounded-full bg-slate-50/90 border border-slate-200/80 text-slate-700 active:scale-90 transition-transform flex items-center justify-center shrink-0"
+          className="relative w-9 h-9 rounded-full bg-black/5 dark-btn border border-black/10 active:scale-90 transition-transform flex items-center justify-center shrink-0"
           title="Avvisi e deviazioni GTT"
           aria-label="Avvisi GTT"
         >

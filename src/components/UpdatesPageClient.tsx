@@ -412,9 +412,22 @@ export default function UpdatesPageClient() {
               </div>
               <p className="text-xs text-slate-600 leading-relaxed">
                 Tocca <strong>Attiva notifiche</strong>: il telefono si{" "}
-                <em>iscrive a GTT Live</em> (non a una newsletter). Così possiamo
-                mandarti avvisi anche a schermo spento. Su iPhone serve
-                l’app aggiunta alla Home (PWA).
+                <em>iscrive a GTT Live</em>. Su iPhone serve l’app in Home (PWA).
+              </p>
+              <p className="text-[11px] bg-slate-50 text-slate-600 border border-slate-200 rounded-xl px-3 py-2 leading-relaxed">
+                <strong>Perché a app chiusa non partiva:</strong> su Vercel Hobby
+                non si può programmare un cron ogni 5 minuti (solo 1/giorno). Gli
+                avvisi locali funzionano con l’app aperta. Per la push a app
+                chiusa: attiva gli avvisi preferiti qui sotto, poi in GitHub →
+                Settings → Secrets aggiungi{" "}
+                <code className="font-mono text-[10px]">CRON_URL</code> (URL
+                completo di{" "}
+                <code className="font-mono text-[10px]">
+                  /api/cron/smart-alerts
+                </code>
+                ) e{" "}
+                <code className="font-mono text-[10px]">CRON_SECRET</code>{" "}
+                (uguale a Vercel). Il workflow ogni 5 min manda gli avvisi.
               </p>
 
               {!pushReady && (
@@ -485,7 +498,7 @@ export default function UpdatesPageClient() {
                     }
                     setPushStatus(
                       next
-                        ? "Avvisi preferiti attivi. Controlla ogni ~50s con l’app aperta (Hobby Vercel: niente cron frequenti)."
+                        ? "Avvisi attivi: ~50s con app aperta; a app chiusa serve il cron GitHub (vedi nota sopra)."
                         : "Avvisi preferiti disattivati."
                     );
                   }}

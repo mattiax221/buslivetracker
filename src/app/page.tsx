@@ -6,7 +6,7 @@ import PermissionsPrompt from "@/components/PermissionsPrompt";
 const BusMap = dynamic(() => import("@/components/BusMap"), {
   ssr: false,
   loading: () => (
-    <div className="w-full h-dvh flex items-center justify-center bg-gradient-to-b from-slate-50 to-slate-100">
+    <div className="w-full h-dvh flex items-center justify-center" style={{ background: "var(--app-bg)" }}>
       <div className="flex flex-col items-center gap-4 chrome-enter">
         <div className="w-16 h-16 rounded-[1.15rem] overflow-hidden shadow-lg shadow-blue-500/30 bg-[#0B5FFF]">
           {/* eslint-disable-next-line @next/next/no-img-element */}

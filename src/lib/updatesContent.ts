@@ -13,6 +13,15 @@ export type RoadmapItem = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.15",
+    date: "2026-10-30",
+    title: "Night mode e push a app chiusa",
+    items: [
+      "Modalità notte (Altro → Modalità notte), mappa scura e chrome adattati",
+      "Cron GitHub Actions ogni 5 min per avvisi preferiti anche a app chiusa (Hobby Vercel non può)",
+    ],
+  },
+  {
     version: "0.3.14",
     date: "2026-10-30",
     title: "GPS mezzi più reattivo",
@@ -216,9 +225,9 @@ export const ROADMAP: RoadmapItem[] = [
     detail: "Meno marker a zoom basso e animazione più leggera sul telefono.",
   },
   {
-    status: "exploring",
+    status: "done",
     title: "Modalità notte",
-    detail: "Mappa e chrome scuri per la sera, meno abbagliamento.",
+    detail: "Toggle in Altro; di default attiva la sera (19–7).",
   },
   {
     status: "exploring",

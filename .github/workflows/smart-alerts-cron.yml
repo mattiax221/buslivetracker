@@ -1,0 +1,30 @@
+# Push preferiti anche a app chiusa (Hobby Vercel non permette cron ogni 5 min).
+# Secrets richiesti nel repo GitHub:
+#   CRON_URL    = https://TUO-DOMINIO.vercel.app/api/cron/smart-alerts
+#   CRON_SECRET = stesso valore di CRON_SECRET su Vercel
+name: Smart alerts cron
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger smart-alerts
+        env:
+          CRON_URL: ${{ secrets.CRON_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_URL" ]; then
+            echo "Missing secret CRON_URL — skip"
+            exit 0
+          fi
+          code=$(curl -sS -o /tmp/cron-out.txt -w "%{http_code}" \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            "$CRON_URL")
+          echo "HTTP $code"
+          cat /tmp/cron-out.txt
+          test "$code" = "200"
