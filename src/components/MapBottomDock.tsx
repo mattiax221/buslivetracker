@@ -32,6 +32,8 @@ interface MapBottomDockProps {
   onOpenMetro: () => void;
   onOpenAbout: () => void;
   onSelectNearest: () => void;
+  /** Hide while a sheet is open so it can't slide under the viewport */
+  sheetOpen?: boolean;
 }
 
 export default function MapBottomDock({
@@ -47,6 +49,7 @@ export default function MapBottomDock({
   onOpenMetro,
   onOpenAbout,
   onSelectNearest,
+  sheetOpen = false,
 }: MapBottomDockProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [legendOpen, setLegendOpen] = useState(false);
@@ -64,9 +67,24 @@ export default function MapBottomDock({
     return () => document.removeEventListener("mousedown", onDoc);
   }, [menuOpen, legendOpen]);
 
+  useEffect(() => {
+    if (sheetOpen) {
+      setMenuOpen(false);
+      setLegendOpen(false);
+    }
+  }, [sheetOpen]);
+
   return (
-    <div className="absolute bottom-0 left-0 right-0 z-[1000] pointer-events-none pb-safe dock-enter">
-      <div className="pointer-events-auto px-3 pb-3 space-y-2" ref={menuRef}>
+    <div
+      className={`fixed bottom-0 left-0 right-0 z-[1000] pb-safe dock-enter transition-opacity duration-150 ${
+        sheetOpen ? "opacity-0 pointer-events-none" : "opacity-100 pointer-events-none"
+      }`}
+      aria-hidden={sheetOpen}
+    >
+      <div
+        className={`px-3 pb-3 space-y-2 ${sheetOpen ? "pointer-events-none" : "pointer-events-auto"}`}
+        ref={menuRef}
+      >
         {showNearestChip && nearestStop && (
           <button
             onClick={onSelectNearest}

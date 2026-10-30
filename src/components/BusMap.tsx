@@ -1402,6 +1402,7 @@ export default function BusMap() {
         onSelectNearest={() => {
           if (nearestStop) handleSelectStop(nearestStop.stop);
         }}
+        sheetOpen={!!activeSheet}
       />
 
       <SheetHost active={activeSheet} onClose={closeSheet}>

@@ -155,7 +155,7 @@ export default function StopBottomSheet({
   if (!stop) return null;
 
   const panel = (
-      <div className="bg-white rounded-t-3xl shadow-2xl border-t border-gray-100 max-h-[75vh] flex flex-col pb-safe animate-in slide-in-from-bottom duration-200">
+      <div className="bg-white rounded-t-3xl shadow-2xl border-t border-gray-100 max-h-[min(75dvh,100%)] flex flex-col overflow-hidden pb-safe animate-in slide-in-from-bottom duration-200">
         {/* Handle */}
         <div className="w-full flex justify-center pt-2.5 pb-1" onClick={onClose}>
           <div className="w-12 h-1.5 bg-gray-300 rounded-full" />

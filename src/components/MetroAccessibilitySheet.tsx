@@ -60,7 +60,7 @@ export default function MetroAccessibilitySheet({
 
   const panel = (
       <div
-        className="w-full max-w-lg mx-auto bg-white rounded-t-3xl shadow-2xl border border-gray-100 flex flex-col max-h-[88vh] overflow-hidden animate-in slide-in-from-bottom duration-300"
+        className="w-full max-w-lg mx-auto bg-white rounded-t-3xl shadow-2xl border border-gray-100 flex flex-col max-h-[min(88dvh,100%)] overflow-hidden animate-in slide-in-from-bottom duration-300"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

@@ -71,7 +71,7 @@ export default function AlertsBottomSheet({
   if (!isOpen) return null;
 
   const panel = (
-      <div className="relative bg-white rounded-t-3xl shadow-2xl max-h-[85vh] flex flex-col overflow-hidden pb-safe animate-in slide-in-from-bottom duration-200">
+      <div className="relative bg-white rounded-t-3xl shadow-2xl max-h-[min(85dvh,100%)] flex flex-col overflow-hidden pb-safe animate-in slide-in-from-bottom duration-200">
         {/* Handle */}
         <div className="w-full flex justify-center pt-2.5 pb-1" onClick={onClose}>
           <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
