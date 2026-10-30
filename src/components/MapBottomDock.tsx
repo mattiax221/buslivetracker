@@ -117,20 +117,23 @@ export default function MapBottomDock({
                 <span>Stimata da orari (senza GPS)</span>
               </div>
             </div>
-            <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-              <div>
+            <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-3">
+              <div className="min-w-0">
                 <div className="font-bold text-slate-800 text-[11px]">
-                  Stima mezzi senza GPS
+                  Mezzi programmati (senza GPS)
                 </div>
-                <div className="text-[10px] text-slate-400">
-                  {showEstimated ? "Attiva" : "Spenta"}
+                <div className="text-[10px] text-slate-400 leading-snug">
+                  Di default vedi solo GPS verificato. Attivali se ti servono.
                 </div>
               </div>
               <button
+                type="button"
                 onClick={onToggleEstimated}
-                className={`w-9 h-5 flex items-center rounded-full p-0.5 transition-colors ${
+                className={`w-9 h-5 flex items-center rounded-full p-0.5 transition-colors shrink-0 ${
                   showEstimated ? "bg-amber-500" : "bg-slate-300"
                 }`}
+                aria-pressed={showEstimated}
+                aria-label="Mostra mezzi programmati senza GPS"
               >
                 <div
                   className={`bg-white w-4 h-4 rounded-full shadow-md transition-transform ${

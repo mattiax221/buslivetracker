@@ -6,15 +6,6 @@ export const TORINO_SOFT_BOUNDS: [[number, number], [number, number]] = [
   [45.25, 7.95],
 ];
 
-/** Cap DOM bus markers so low zoom does not crash phones. */
-export function markerBudget(zoom: number, lineFiltered: boolean): number {
-  if (lineFiltered) return 36;
-  if (zoom >= 16) return 42;
-  if (zoom >= 15) return 28;
-  if (zoom >= 14) return 18;
-  return 10;
-}
-
 export const TRAM_LINES = new Set([
   "3", "3/", "3B",
   "4", "4/", "4B",

@@ -13,6 +13,15 @@ export type RoadmapItem = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.8",
+    date: "2026-10-30",
+    title: "Tutti i mezzi GPS, stime opzionali",
+    items: [
+      "Niente più limite sul numero di pullman con GPS in mappa",
+      "Mezzi programmati (senza GPS) spenti di default, attivabili dalla legenda",
+    ],
+  },
+  {
     version: "0.3.7",
     date: "2026-10-30",
     title: "Meno freeze + aggiorna mezzi",

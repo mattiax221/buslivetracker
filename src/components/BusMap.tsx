@@ -50,7 +50,6 @@ import {
   MAP_CHROME_PAD,
   TORINO_CENTER,
   TORINO_SOFT_BOUNDS,
-  markerBudget,
   expandLineFilter,
   getDistanceMeters,
   isMetro,
@@ -812,52 +811,31 @@ export default function BusMap() {
     }
 
     const [[south, west], [north, east]] = TORINO_SOFT_BOUNDS;
-    const inTurin = (v: Vehicle) =>
+    const inRegion = (v: Vehicle) =>
       v.lat >= south && v.lat <= north && v.lon >= west && v.lon <= east;
 
-    let list =
-      selectedLines.size > 0
-        ? filteredVehicles.filter(inTurin)
-        : allVehicles.filter(inTurin);
+    // Only GPS / live feed (+ metro). Scheduled estimates only if toggle ON.
+    const isLiveGps = (v: Vehicle) => !v.isEstimated;
 
-    // City-wide view: skip schedule estimates, they double the icons
-    if (selectedLines.size === 0 && mapZoom < 15) {
-      list = list.filter((v) => !v.isEstimated);
-    }
+    let list = (selectedLines.size > 0 ? filteredVehicles : allVehicles).filter(
+      (v) => inRegion(v) && (showEstimated || isLiveGps(v))
+    );
 
-    if (selectedLines.size === 0 && mapBounds) {
-      const padded = mapBounds.pad(0.06);
+    // Still clip to the visible map (not a count cap — every GPS bus on screen)
+    if (mapBounds) {
+      const padded = mapBounds.pad(0.15);
       list = list.filter((v) => padded.contains([v.lat, v.lon]));
     }
 
-    const cap = markerBudget(mapZoom, selectedLines.size > 0);
-    if (list.length <= cap) return list;
-
-    const center = mapBounds?.getCenter();
-    if (!center) return list.slice(0, cap);
-    const clat = center.lat;
-    const clon = center.lng;
-    return list
-      .map((v) => ({
-        v,
-        d: (v.lat - clat) * (v.lat - clat) + (v.lon - clon) * (v.lon - clon),
-      }))
-      .sort((a, b) => a.d - b.d)
-      .slice(0, cap)
-      .map((x) => x.v);
+    return list;
   }, [
     allVehicles,
     activeVehicleRoute,
     selectedLines,
     mapBounds,
-    mapZoom,
     filteredVehicles,
+    showEstimated,
   ]);
-
-  const vehiclesCapped =
-    selectedLines.size === 0 &&
-    mapZoom < 15 &&
-    allVehicles.length > visibleVehicles.length;
 
   const handleToggleLine = useCallback((rawLine: string) => {
     setSelectedDirection(null);
@@ -1215,14 +1193,6 @@ export default function BusMap() {
           onSelectStop={(stop) => handleSelectStop(stop)}
         />
       </MapContainer>
-
-      {vehiclesCapped && (
-        <div className="absolute left-0 right-0 bottom-[5.75rem] z-[900] flex justify-center pointer-events-none px-4">
-          <p className="bg-slate-900/85 text-white text-[11px] font-semibold px-3 py-1.5 rounded-full shadow-lg">
-            Avvicina: a questa scala mostro solo i mezzi più vicini
-          </p>
-        </div>
-      )}
 
       {/* Top chrome column */}
       <div className="absolute top-0 left-0 right-0 z-[1000] pointer-events-none">
