@@ -13,6 +13,7 @@ import {
   Sparkles,
   Bell,
   History,
+  Route,
 } from "lucide-react";
 import Link from "next/link";
 import { getDistanceMeters, isMetro, lineColor } from "../lib/mapUtils";
@@ -20,6 +21,11 @@ import {
   getRecentHistory,
   type RecentHistory,
 } from "../lib/recentHistory";
+import {
+  getTripShortcuts,
+  removeTripShortcut,
+  type TripShortcut,
+} from "../lib/tripPlan";
 
 type FavStop = { code: string; name: string };
 
@@ -46,6 +52,8 @@ interface FavoritesSheetProps {
   /** Stop code → lat/lon for distance */
   stopCoordsByCode?: Record<string, { lat: number; lon: number }>;
   hosted?: boolean;
+  onOpenTrip?: () => void;
+  onOpenTripShortcut?: (s: TripShortcut) => void;
 }
 
 const SUGGESTED_LINES = ["4", "18", "55", "56", "M1", "10"];
@@ -64,16 +72,20 @@ export default function FavoritesSheet({
   liveLineCounts = {},
   stopCoordsByCode = {},
   hosted = false,
+  onOpenTrip,
+  onOpenTripShortcut,
 }: FavoritesSheetProps) {
   const [arrivalsByStop, setArrivalsByStop] = useState<
     Record<string, StopArrivalPreview[]>
   >({});
   const [arrivalsLoading, setArrivalsLoading] = useState(false);
   const [recent, setRecent] = useState<RecentHistory>({ lines: [], stops: [] });
+  const [tripShortcuts, setTripShortcuts] = useState<TripShortcut[]>([]);
 
   useEffect(() => {
     if (!isOpen) return;
     setRecent(getRecentHistory());
+    setTripShortcuts(getTripShortcuts());
   }, [isOpen]);
 
   const sortedStops = useMemo(() => {
@@ -177,6 +189,16 @@ export default function FavoritesSheet({
         <div className="grid grid-cols-2 gap-2">
           <button
             type="button"
+            onClick={() => onOpenTrip?.()}
+            className="flex items-center gap-2 rounded-2xl bg-[#0B5FFF]/[0.08] border border-[#0B5FFF]/20 px-3 py-2.5 text-left active:bg-[#0B5FFF]/15 col-span-2"
+          >
+            <Route className="w-4 h-4 text-[#0B5FFF] shrink-0" />
+            <span className="text-xs font-bold text-slate-800 leading-tight">
+              Calcola percorso (partenza → arrivo)
+            </span>
+          </button>
+          <button
+            type="button"
             onClick={() => {
               onLocateMe?.();
               onClose();
@@ -199,6 +221,42 @@ export default function FavoritesSheet({
             </span>
           </Link>
         </div>
+
+        {tripShortcuts.length > 0 && (
+          <section className="space-y-2">
+            <h3 className="text-[10px] font-bold uppercase tracking-wide text-slate-400 px-0.5">
+              Percorsi salvati
+            </h3>
+            {tripShortcuts.map((s) => (
+              <div
+                key={s.id}
+                className="flex items-center gap-1 rounded-2xl border border-slate-100 bg-white overflow-hidden"
+              >
+                <button
+                  type="button"
+                  onClick={() => onOpenTripShortcut?.(s)}
+                  className="flex-1 min-w-0 text-left px-3 py-2.5 active:bg-slate-50"
+                >
+                  <div className="text-sm font-bold text-slate-900 truncate">
+                    {s.name}
+                  </div>
+                  <div className="text-[10px] text-slate-400 truncate">
+                    {s.from.name} → {s.to.name}
+                    {s.departTime ? ` · ${s.departTime}` : ""}
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTripShortcuts(removeTripShortcut(s.id))}
+                  className="p-3 text-slate-400 hover:text-rose-500"
+                  title="Elimina scorciatoia"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ))}
+          </section>
+        )}
 
         {(recent.lines.length > 0 || recent.stops.length > 0) && (
           <div>

@@ -12,6 +12,7 @@ import {
   Shield,
   Newspaper,
   RefreshCw,
+  Route,
 } from "lucide-react";
 
 interface NearestStopInfo {
@@ -31,6 +32,7 @@ interface MapBottomDockProps {
   onOpenFavorites: () => void;
   onOpenMetro: () => void;
   onOpenAbout: () => void;
+  onOpenTrip: () => void;
   onSelectNearest: () => void;
   /** Hide while a sheet is open so it can't slide under the viewport */
   sheetOpen?: boolean;
@@ -48,6 +50,7 @@ export default function MapBottomDock({
   onOpenFavorites,
   onOpenMetro,
   onOpenAbout,
+  onOpenTrip,
   onSelectNearest,
   sheetOpen = false,
 }: MapBottomDockProps) {
@@ -165,6 +168,16 @@ export default function MapBottomDock({
 
         {menuOpen && !legendOpen && (
           <div className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden ml-auto w-[220px]">
+            <button
+              onClick={() => {
+                setMenuOpen(false);
+                onOpenTrip();
+              }}
+              className="w-full flex items-center gap-2.5 px-3.5 py-3 text-left text-sm font-semibold text-slate-800 active:bg-slate-50 border-b border-slate-100"
+            >
+              <Route className="w-4 h-4 text-[#0B5FFF]" />
+              Calcola percorso
+            </button>
             <button
               onClick={() => {
                 setMenuOpen(false);

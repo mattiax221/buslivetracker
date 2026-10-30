@@ -36,12 +36,14 @@ import FavoritesSheet from "./FavoritesSheet";
 import MetroAccessibilitySheet from "./MetroAccessibilitySheet";
 import ShareModal from "./ShareModal";
 import AboutPrivacySheet from "./AboutPrivacySheet";
+import TripPlannerSheet from "./TripPlannerSheet";
 import MapTopChrome from "./MapTopChrome";
 import MapSearchPanel from "./MapSearchPanel";
 import MapContextBanner from "./MapContextBanner";
 import MapBottomDock from "./MapBottomDock";
 import SheetHost from "./SheetHost";
 import { ShareData } from "../lib/shareUtils";
+import type { TripPlace } from "../lib/tripPlan";
 import { estimateScheduledVehicles } from "../lib/scheduleEstimator";
 import { registerServiceWorker } from "../lib/pwa";
 import { METRO_M1_ACCESSIBILITY } from "../lib/metroAccessibility";
@@ -581,6 +583,12 @@ export default function BusMap() {
   const lastFittedLineRef = useRef<string | null>(null);
 
   const [activeSheet, setActiveSheet] = useState<ActiveSheet>(null);
+  const [tripInitial, setTripInitial] = useState<{
+    from?: TripPlace;
+    to?: TripPlace;
+    departTime?: string;
+    autoSearch?: boolean;
+  } | null>(null);
   const [alertsCount, setAlertsCount] = useState(0);
   const [userCoords, setUserCoords] = useState<[number, number] | null>(null);
   const [shareModalData, setShareModalData] = useState<ShareData | null>(null);
@@ -1399,6 +1407,10 @@ export default function BusMap() {
         onOpenFavorites={() => openSheet("favorites")}
         onOpenMetro={() => openSheet("metro")}
         onOpenAbout={() => openSheet("about")}
+        onOpenTrip={() => {
+          setTripInitial(null);
+          openSheet("trip");
+        }}
         onSelectNearest={() => {
           if (nearestStop) handleSelectStop(nearestStop.stop);
         }}
@@ -1469,6 +1481,19 @@ export default function BusMap() {
             onSelectStop={(code) => {
               handleSelectStopByCode(code);
             }}
+            onOpenTrip={() => {
+              setTripInitial(null);
+              openSheet("trip");
+            }}
+            onOpenTripShortcut={(s) => {
+              setTripInitial({
+                from: s.from,
+                to: s.to,
+                departTime: s.departTime || undefined,
+                autoSearch: true,
+              });
+              openSheet("trip");
+            }}
           />
         )}
 
@@ -1507,6 +1532,20 @@ export default function BusMap() {
 
         {activeSheet === "about" && (
           <AboutPrivacySheet isOpen hosted onClose={closeSheet} />
+        )}
+
+        {activeSheet === "trip" && (
+          <TripPlannerSheet
+            isOpen
+            hosted
+            onClose={() => {
+              setTripInitial(null);
+              closeSheet();
+            }}
+            stops={allStops}
+            userCoords={userCoords}
+            initial={tripInitial}
+          />
         )}
       </SheetHost>
     </div>

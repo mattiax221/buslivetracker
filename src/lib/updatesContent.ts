@@ -13,6 +13,16 @@ export type RoadmapItem = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.12",
+    date: "2026-10-30",
+    title: "Calcola percorso e scorciatoie",
+    items: [
+      "Partenza → arrivo + orario: percorsi più veloci bus/tram (Muoversi a Torino)",
+      "Salva il tragitto come scorciatoia (es. casa → lavoro) e riaprilo da Preferiti",
+      "Fix barra sotto che usciva dallo schermo con i popup",
+    ],
+  },
+  {
     version: "0.3.11",
     date: "2026-10-30",
     title: "Avvisi preferiti e ultime usate",
@@ -161,9 +171,10 @@ export const ROADMAP: RoadmapItem[] = [
     detail: "Linee e fermate aperte di recente in Preferiti (solo localStorage leggero).",
   },
   {
-    status: "soon",
-    title: "Casa ↔ lavoro in un tap",
-    detail: "Due fermate o linee fisse (mattina/sera) apribili dalla Home.",
+    status: "done",
+    title: "Percorso + scorciatoia casa↔lavoro",
+    detail:
+      "Calcola i percorsi più veloci con orario, poi salva partenza/arrivo come scorciatoia.",
   },
   {
     status: "soon",

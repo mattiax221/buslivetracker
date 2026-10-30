@@ -81,7 +81,8 @@ export type ActiveSheet =
   | "favorites"
   | "metro"
   | "share"
-  | "about";
+  | "about"
+  | "trip";
 
 /** Padding so fitBounds / fly targets clear top search + bottom dock on phones. */
 export const MAP_CHROME_PAD = {
