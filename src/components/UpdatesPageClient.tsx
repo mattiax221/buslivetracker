@@ -415,19 +415,18 @@ export default function UpdatesPageClient() {
                 <em>iscrive a GTT Live</em>. Su iPhone serve l’app in Home (PWA).
               </p>
               <p className="text-[11px] bg-slate-50 text-slate-600 border border-slate-200 rounded-xl px-3 py-2 leading-relaxed">
-                <strong>Perché a app chiusa non partiva:</strong> su Vercel Hobby
-                non si può programmare un cron ogni 5 minuti (solo 1/giorno). Gli
-                avvisi locali funzionano con l’app aperta. Per la push a app
-                chiusa: attiva gli avvisi preferiti qui sotto, poi in GitHub →
-                Settings → Secrets aggiungi{" "}
-                <code className="font-mono text-[10px]">CRON_URL</code> (URL
-                completo di{" "}
+                <strong>Push a app chiusa:</strong> la route c’è già (
                 <code className="font-mono text-[10px]">
                   /api/cron/smart-alerts
                 </code>
-                ) e{" "}
-                <code className="font-mono text-[10px]">CRON_SECRET</code>{" "}
-                (uguale a Vercel). Il workflow ogni 5 min manda gli avvisi.
+                ). Su Vercel Hobby il cron può girare{" "}
+                <em>solo 1 volta al giorno</em> (mattina ~7:00) — metti{" "}
+                <code className="font-mono text-[10px]">CRON_SECRET</code> nelle
+                env Vercel. Per avvisi ogni ~5 min (utili per i bus): GitHub →
+                Settings → Secrets con{" "}
+                <code className="font-mono text-[10px]">CRON_URL</code> +{" "}
+                <code className="font-mono text-[10px]">CRON_SECRET</code>, oppure
+                piano Vercel Pro.
               </p>
 
               {!pushReady && (
