@@ -17,16 +17,8 @@ import {
 } from "lucide-react";
 import { CHANGELOG, ROADMAP } from "../lib/updatesContent";
 import { registerServiceWorker } from "../lib/pwa";
+import { subscribeDevicePush } from "../lib/pushClient";
 import type { Suggestion, SuggestionCategory } from "../lib/suggestions";
-
-function urlBase64ToUint8Array(base64String: string): Uint8Array {
-  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
-  const raw = atob(base64);
-  const out = new Uint8Array(raw.length);
-  for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
-  return out;
-}
 
 export default function UpdatesPageClient() {
   const [tab, setTab] = useState<"log" | "next" | "ideas" | "push">("log");
@@ -107,49 +99,12 @@ export default function UpdatesPageClient() {
     setPushBusy(true);
     setPushStatus(null);
     try {
-      if (!vapidKey) {
-        setPushStatus("Chiavi VAPID non configurate sul server.");
+      const result = await subscribeDevicePush(vapidKey);
+      if (!result.ok) {
+        setPushStatus(result.error || "Attivazione non riuscita.");
         return;
       }
-      if (!("Notification" in window) || !("serviceWorker" in navigator)) {
-        setPushStatus("Questo browser non supporta le notifiche push.");
-        return;
-      }
-      const perm = await Notification.requestPermission();
-      if (perm !== "granted") {
-        setPushStatus("Permesso notifiche negato.");
-        return;
-      }
-      const reg = await registerServiceWorker();
-      if (!reg) {
-        setPushStatus("Service worker non disponibile.");
-        return;
-      }
-      await navigator.serviceWorker.ready;
-      let sub = await reg.pushManager.getSubscription();
-      if (!sub) {
-        sub = await reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(
-            vapidKey
-          ) as BufferSource,
-        });
-      }
-      const json = sub.toJSON();
-      const res = await fetch("/api/push/subscribe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          endpoint: json.endpoint,
-          keys: json.keys,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setPushStatus(data.error || "Registrazione fallita.");
-        return;
-      }
-      setEndpoint(json.endpoint || null);
+      setEndpoint(result.endpoint || null);
       setPushStatus(
         "Dispositivo registrato. Puoi provare una notifica anche a schermo spento."
       );

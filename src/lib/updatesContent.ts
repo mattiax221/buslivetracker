@@ -13,6 +13,15 @@ export type RoadmapItem = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.1",
+    date: "2026-10-30",
+    title: "Permessi all’apertura e nuovo logo",
+    items: [
+      "All’apertura chiede posizione e notifiche (con riproposta se le disattivi)",
+      "Nuovo logo / icone Home Screen",
+    ],
+  },
+  {
     version: "0.3.0",
     date: "2026-10-30",
     title: "App pubblica, motion e aggiornamenti",

@@ -1,0 +1,15 @@
+---
+description: After substantial feature updates, commit and push to GitHub without asking
+alwaysApply: true
+---
+
+# Auto commit + push on big updates
+
+When finishing a **substantial** update (new feature, multi-file UX change, permissions, branding, API, deploy-blocking fix), do this without asking first:
+
+1. Commit with a clear message (follow the repo git safety protocol; never commit `.env.local` / secrets).
+2. Push to `origin` on the current branch (usually `main`).
+3. Briefly tell the user the commit landed and that Vercel will deploy.
+
+Still ask before: force push, amend of pushed commits, deleting branches, or any destructive git operation.
+Skip auto-push for tiny one-line tweaks or WIP the user is still iterating on mid-turn.
