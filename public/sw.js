@@ -1,5 +1,5 @@
 // GTT Live — Service Worker (cache + Web Push)
-const CACHE_NAME = "gtt-live-cache-v5";
+const CACHE_NAME = "gtt-live-cache-v6";
 const PRECACHE = [
   "/manifest.json",
   "/favicon.png",

@@ -30,7 +30,7 @@ const BusMap = dynamic(() => import("@/components/BusMap"), {
 
 export default function Home() {
   return (
-    <main className="w-full h-dvh overflow-hidden">
+    <main className="map-shell w-full h-dvh overflow-hidden">
       <BusMap />
       <PermissionsPrompt />
     </main>

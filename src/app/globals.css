@@ -6,21 +6,30 @@
   --chrome-bottom: calc(env(safe-area-inset-bottom, 0px) + 4.5rem);
 }
 
-/* Full-screen map & mobile touch */
+/* Map locks the page; other routes (aggiornamenti) must scroll */
 html,
 body {
   margin: 0;
   padding: 0;
   width: 100%;
-  height: 100%;
-  height: 100dvh;
-  overflow: hidden;
-  overscroll-behavior-y: none;
+  min-height: 100%;
+  min-height: 100dvh;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: auto;
   -webkit-tap-highlight-color: transparent;
   -webkit-touch-callout: none;
   color: #0f172a;
   background: #e8eef5;
   touch-action: manipulation;
+}
+
+/* Map route is full-bleed and must not scroll the document */
+body:has(.map-shell) {
+  height: 100%;
+  height: 100dvh;
+  overflow: hidden;
+  overscroll-behavior-y: none;
 }
 
 /* Mobile safe area insets */
@@ -48,7 +57,7 @@ body {
 }
 
 .leaflet-fade-anim .leaflet-tile {
-  transition: opacity 0.25s ease !important;
+  transition: none !important;
 }
 
 /* ── Chrome enter / dock enter ── */

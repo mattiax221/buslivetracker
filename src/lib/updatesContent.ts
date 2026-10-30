@@ -13,6 +13,15 @@ export type RoadmapItem = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.3",
+    date: "2026-10-30",
+    title: "Meno lag e pagina Aggiornamenti scorrevole",
+    items: [
+      "Animazione mezzi più leggera sul telefono",
+      "Aggiornamenti si scrolla di nuovo",
+    ],
+  },
+  {
     version: "0.3.2",
     date: "2026-10-30",
     title: "GPS più veloce e Preferiti utili",
@@ -75,27 +84,47 @@ export const ROADMAP: RoadmapItem[] = [
   },
   {
     status: "soon",
-    title: "Widget / scorciatoia “casa ↔ lavoro”",
-    detail: "Due fermate o linee fisse apribili in un tap dalla Home.",
+    title: "Casa ↔ lavoro in un tap",
+    detail: "Due fermate o linee fisse (mattina/sera) apribili dalla Home.",
   },
   {
     status: "soon",
-    title: "Storico linee usate di recente",
-    detail: "Oltre ai preferiti, le ultime linee/fermate aperte senza salvarle.",
+    title: "Ultime usate",
+    detail: "Le linee e fermate aperte di recente, senza doverle mettere nei preferiti.",
+  },
+  {
+    status: "soon",
+    title: "Filtro solo i miei mezzi",
+    detail: "Un interruttore per vedere in mappa solo le linee salvate.",
+  },
+  {
+    status: "soon",
+    title: "Orari della fermata anche senza live",
+    detail: "Passaggi previsti da orario quando il GPS del mezzo manca.",
+  },
+  {
+    status: "soon",
+    title: "Condividi arrivo",
+    detail: "Messaggio pronto con fermata e minuti al prossimo bus.",
   },
   {
     status: "exploring",
-    title: "Meno sovrapposizione badge a zoom basso",
-    detail: "Raggruppamento o priorità dei mezzi quando la mappa è piena.",
+    title: "Meno lag con tanti bus",
+    detail: "Meno marker a zoom basso e animazione più leggera sul telefono.",
   },
   {
     status: "exploring",
-    title: "Modalità offline base",
-    detail: "Fermate e linee consultabili anche senza rete (senza live GPS).",
+    title: "Modalità notte",
+    detail: "Mappa e chrome scuri per la sera, meno abbagliamento.",
   },
   {
     status: "exploring",
-    title: "Condivisione fermata con countdown",
-    detail: "Link o messaggio con i prossimi arrivi già formattati.",
+    title: "Accessibilità metro più chiara",
+    detail: "Ascensori e barriere in evidenza quando apri una stazione M1.",
+  },
+  {
+    status: "exploring",
+    title: "Offline base",
+    detail: "Fermate e linee consultabili senza rete (senza posizioni live).",
   },
 ];

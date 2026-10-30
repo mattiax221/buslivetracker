@@ -785,11 +785,13 @@ export default function BusMap() {
     markerRegistryRef.current.delete(id);
   }, []);
 
-  // Imperative rAF motion loop — no React setState per frame
+  // Motion loop throttled to ~12fps — enough for glide, much lighter on phones
   useEffect(() => {
     let active = true;
+    let lastTick = 0;
+    const FRAME_MS = 1000 / 12;
 
-    const tick = () => {
+    const tick = (now: number) => {
       if (!active) return;
       if (
         typeof document !== "undefined" &&
@@ -799,13 +801,17 @@ export default function BusMap() {
         return;
       }
 
-      const now = performance.now();
+      rafRef.current = requestAnimationFrame(tick);
+      if (now - lastTick < FRAME_MS) return;
+      lastTick = now;
+
       const updates = tickMotions(motionStatesRef.current, now);
       const registry = markerRegistryRef.current;
       const metaMap = vehicleMetaRef.current;
 
       for (let i = 0; i < updates.length; i++) {
         const { id, sample, headingChanged, mode, animating } = updates[i];
+        if (!animating && !headingChanged) continue;
         const marker = registry.get(id);
         if (!marker) continue;
 
@@ -829,8 +835,6 @@ export default function BusMap() {
           iconModeRef.current.set(id, iconKey);
         }
       }
-
-      rafRef.current = requestAnimationFrame(tick);
     };
 
     const onVisibility = () => {
@@ -839,6 +843,7 @@ export default function BusMap() {
         active &&
         rafRef.current == null
       ) {
+        lastTick = 0;
         rafRef.current = requestAnimationFrame(tick);
       }
     };
@@ -902,8 +907,8 @@ export default function BusMap() {
       return match ? [match] : [];
     }
     if (selectedLines.size > 0) return filteredVehicles;
-    if (!mapBounds) return allVehicles.slice(0, 90);
-    const padded = mapBounds.pad(0.25);
+    if (!mapBounds) return allVehicles.slice(0, 60);
+    const padded = mapBounds.pad(0.12);
     return allVehicles.filter((v) => padded.contains([v.lat, v.lon]));
   }, [allVehicles, activeVehicleRoute, selectedLines, mapBounds, filteredVehicles]);
 

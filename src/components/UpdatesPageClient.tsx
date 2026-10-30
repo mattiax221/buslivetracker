@@ -157,7 +157,7 @@ export default function UpdatesPageClient() {
   };
 
   return (
-    <div className="min-h-dvh bg-[#F0F4F8] text-slate-900">
+    <div className="min-h-dvh bg-[#F0F4F8] text-slate-900 overflow-y-auto overscroll-y-contain">
       <header className="sticky top-0 z-20 pt-safe bg-white/90 backdrop-blur-xl border-b border-slate-200/80">
         <div className="max-w-lg mx-auto px-4 py-3 flex items-center gap-3">
           <Link
