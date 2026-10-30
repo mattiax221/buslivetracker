@@ -485,7 +485,7 @@ export default function UpdatesPageClient() {
                     }
                     setPushStatus(
                       next
-                        ? "Avvisi preferiti attivi. Controlla ogni ~50s con l’app aperta; cron ogni 5 min sulle fermate."
+                        ? "Avvisi preferiti attivi. Controlla ogni ~50s con l’app aperta (Hobby Vercel: niente cron frequenti)."
                         : "Avvisi preferiti disattivati."
                     );
                   }}
