@@ -19,6 +19,8 @@ export type TripLeg = {
   durationSec: number;
   distanceM: number;
   transit: boolean;
+  /** Decoded lat/lon path for map guidance */
+  points: [number, number][];
 };
 
 export type TripItinerary = {
@@ -104,4 +106,30 @@ export function removeTripShortcut(id: string): TripShortcut[] {
 export function defaultDepartTime(): string {
   const d = new Date();
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+/** Clean OTP route labels like "58/" → usable line ids. */
+export function cleanTripRoute(route: string): string {
+  return route.replace(/\/+$/, "").replace(/\s+/g, "").toUpperCase();
+}
+
+export function itineraryTransitLines(it: TripItinerary): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const leg of it.legs) {
+    if (!leg.transit || !leg.route) continue;
+    const clean = cleanTripRoute(leg.route);
+    if (!clean || seen.has(clean)) continue;
+    seen.add(clean);
+    out.push(clean);
+  }
+  return out;
+}
+
+export function itineraryAllPoints(it: TripItinerary): [number, number][] {
+  const pts: [number, number][] = [];
+  for (const leg of it.legs) {
+    for (const p of leg.points) pts.push(p);
+  }
+  return pts;
 }

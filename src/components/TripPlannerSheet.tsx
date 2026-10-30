@@ -12,6 +12,8 @@ import {
   Star,
   Trash2,
   TramFront,
+  MapPinned,
+  Play,
 } from "lucide-react";
 import {
   defaultDepartTime,
@@ -36,12 +38,19 @@ export type StopOption = {
 
 type Field = "from" | "to";
 
+type GeoHit = {
+  name: string;
+  label: string;
+  lat: number;
+  lon: number;
+  kind: "street" | "address" | "place";
+};
+
 interface TripPlannerSheetProps {
   isOpen: boolean;
   onClose: () => void;
   stops: StopOption[];
   userCoords?: [number, number] | null;
-  /** Prefill when opening a saved shortcut */
   initial?: {
     from?: TripPlace;
     to?: TripPlace;
@@ -49,6 +58,11 @@ interface TripPlannerSheetProps {
     autoSearch?: boolean;
   } | null;
   hosted?: boolean;
+  onStartGuidance?: (payload: {
+    itinerary: TripItinerary;
+    from: TripPlace;
+    to: TripPlace;
+  }) => void;
 }
 
 function modeIcon(mode: string, route: string) {
@@ -66,12 +80,15 @@ export default function TripPlannerSheet({
   userCoords = null,
   initial = null,
   hosted = false,
+  onStartGuidance,
 }: TripPlannerSheetProps) {
   const [from, setFrom] = useState<TripPlace | null>(null);
   const [to, setTo] = useState<TripPlace | null>(null);
   const [departTime, setDepartTime] = useState(defaultDepartTime);
   const [activeField, setActiveField] = useState<Field | null>(null);
   const [query, setQuery] = useState("");
+  const [geoHits, setGeoHits] = useState<GeoHit[]>([]);
+  const [geoLoading, setGeoLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [itineraries, setItineraries] = useState<TripItinerary[]>([]);
@@ -87,6 +104,7 @@ export default function TripPlannerSheet({
     setSaveOpen(false);
     setActiveField(null);
     setQuery("");
+    setGeoHits([]);
 
     if (initial?.from) setFrom(initial.from);
     else setFrom(null);
@@ -106,7 +124,7 @@ export default function TripPlannerSheet({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, initial]);
 
-  const suggestions = useMemo(() => {
+  const stopSuggestions = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q || q.length < 2) return [];
     return stops
@@ -116,31 +134,54 @@ export default function TripPlannerSheet({
           s.c.includes(q) ||
           (s.d || "").toLowerCase().includes(q)
       )
-      .slice(0, 8);
+      .slice(0, 6);
   }, [query, stops]);
 
-  const pickStop = (s: StopOption) => {
-    const place: TripPlace = {
-      name: s.n,
-      lat: s.lat,
-      lon: s.lon,
-      code: s.c,
+  // Streets / addresses via Nominatim (server proxy)
+  useEffect(() => {
+    const q = query.trim();
+    if (!activeField || q.length < 3) {
+      setGeoHits([]);
+      return;
+    }
+    let cancelled = false;
+    const t = window.setTimeout(async () => {
+      setGeoLoading(true);
+      try {
+        const res = await fetch(`/api/geocode?q=${encodeURIComponent(q)}`);
+        const data = await res.json();
+        if (!cancelled) setGeoHits(Array.isArray(data.results) ? data.results : []);
+      } catch {
+        if (!cancelled) setGeoHits([]);
+      } finally {
+        if (!cancelled) setGeoLoading(false);
+      }
+    }, 320);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t);
     };
+  }, [query, activeField]);
+
+  const pickPlace = (place: TripPlace) => {
     if (activeField === "to") setTo(place);
     else setFrom(place);
     setActiveField(null);
     setQuery("");
+    setGeoHits([]);
+  };
+
+  const pickStop = (s: StopOption) => {
+    pickPlace({ name: s.n, lat: s.lat, lon: s.lon, code: s.c });
   };
 
   const useMyLocation = () => {
     if (!userCoords) return;
-    setFrom({
+    pickPlace({
       name: "La mia posizione",
       lat: userCoords[0],
       lon: userCoords[1],
     });
-    setActiveField(null);
-    setQuery("");
   };
 
   const swap = () => {
@@ -185,7 +226,7 @@ export default function TripPlannerSheet({
 
   const onSearch = () => {
     if (!from || !to) {
-      setError("Scegli partenza e arrivo (fermata o posizione).");
+      setError("Scegli partenza e arrivo (fermata, via o indirizzo).");
       return;
     }
     void runSearch(from, to, departTime);
@@ -226,7 +267,7 @@ export default function TripPlannerSheet({
             Calcola percorso
           </h2>
           <p className="text-[11px] text-slate-500">
-            Bus e tram più veloci · orari GTT (Muoversi a Torino)
+            Fermate, vie e corsi · bus/tram più veloci
           </p>
         </div>
         <button
@@ -239,7 +280,6 @@ export default function TripPlannerSheet({
       </div>
 
       <div className="overflow-y-auto flex-1 min-h-0 px-4 py-3 space-y-3 overscroll-contain">
-        {/* From / To */}
         <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-3 space-y-2">
           <button
             type="button"
@@ -255,7 +295,7 @@ export default function TripPlannerSheet({
                 Partenza
               </div>
               <div className="text-sm font-bold text-slate-900 truncate">
-                {from?.name || "Scegli fermata…"}
+                {from?.name || "Fermata, via o corso…"}
               </div>
               {from?.code && (
                 <div className="text-[10px] text-slate-400">#{from.code}</div>
@@ -288,7 +328,7 @@ export default function TripPlannerSheet({
                 Arrivo
               </div>
               <div className="text-sm font-bold text-slate-900 truncate">
-                {to?.name || "Scegli fermata…"}
+                {to?.name || "Fermata, via o corso…"}
               </div>
               {to?.code && (
                 <div className="text-[10px] text-slate-400">#{to.code}</div>
@@ -308,7 +348,7 @@ export default function TripPlannerSheet({
                 autoFocus
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Nome o codice palina"
+                placeholder="Es. Porta Nuova, Corso Francia…"
                 className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 text-sm font-medium outline-none focus:border-[#0B5FFF]"
               />
             </div>
@@ -322,28 +362,73 @@ export default function TripPlannerSheet({
                 Usa la mia posizione
               </button>
             )}
-            <div className="max-h-40 overflow-y-auto space-y-1">
-              {suggestions.map((s) => (
-                <button
-                  key={s.c}
-                  type="button"
-                  onClick={() => pickStop(s)}
-                  className="w-full text-left px-2.5 py-2 rounded-xl hover:bg-slate-50 active:bg-slate-100"
-                >
-                  <div className="text-sm font-bold text-slate-900 truncate">
-                    {s.n}
+
+            <div className="max-h-52 overflow-y-auto space-y-2">
+              {stopSuggestions.length > 0 && (
+                <div>
+                  <div className="text-[10px] font-bold uppercase text-slate-400 px-1 mb-1">
+                    Fermate
                   </div>
-                  <div className="text-[10px] text-slate-400">
-                    #{s.c}
-                    {s.d ? ` · ${s.d}` : ""}
-                  </div>
-                </button>
-              ))}
-              {query.trim().length >= 2 && suggestions.length === 0 && (
-                <p className="text-[11px] text-slate-400 px-1 py-2">
-                  Nessuna fermata trovata
-                </p>
+                  {stopSuggestions.map((s) => (
+                    <button
+                      key={s.c}
+                      type="button"
+                      onClick={() => pickStop(s)}
+                      className="w-full text-left px-2.5 py-2 rounded-xl hover:bg-slate-50 active:bg-slate-100"
+                    >
+                      <div className="text-sm font-bold text-slate-900 truncate">
+                        {s.n}
+                      </div>
+                      <div className="text-[10px] text-slate-400">
+                        #{s.c}
+                        {s.d ? ` · ${s.d}` : ""}
+                      </div>
+                    </button>
+                  ))}
+                </div>
               )}
+
+              {(geoHits.length > 0 || geoLoading) && (
+                <div>
+                  <div className="text-[10px] font-bold uppercase text-slate-400 px-1 mb-1">
+                    Vie, corsi e indirizzi
+                  </div>
+                  {geoLoading && geoHits.length === 0 && (
+                    <p className="text-[11px] text-slate-400 px-1 py-1">
+                      Cerco in mappa…
+                    </p>
+                  )}
+                  {geoHits.map((g, i) => (
+                    <button
+                      key={`${g.lat}-${g.lon}-${i}`}
+                      type="button"
+                      onClick={() =>
+                        pickPlace({ name: g.name, lat: g.lat, lon: g.lon })
+                      }
+                      className="w-full text-left px-2.5 py-2 rounded-xl hover:bg-slate-50 active:bg-slate-100 flex items-start gap-2"
+                    >
+                      <MapPinned className="w-3.5 h-3.5 text-[#0B5FFF] mt-0.5 shrink-0" />
+                      <div className="min-w-0">
+                        <div className="text-sm font-bold text-slate-900 truncate">
+                          {g.name}
+                        </div>
+                        <div className="text-[10px] text-slate-400 truncate">
+                          {g.label}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {query.trim().length >= 2 &&
+                stopSuggestions.length === 0 &&
+                !geoLoading &&
+                geoHits.length === 0 && (
+                  <p className="text-[11px] text-slate-400 px-1 py-2">
+                    Nessun risultato. Prova «Corso», «Via» o un codice palina.
+                  </p>
+                )}
             </div>
           </div>
         )}
@@ -479,6 +564,20 @@ export default function TripPlannerSheet({
                 </div>
               ))}
             </div>
+            {from && to && onStartGuidance && (
+              <div className="px-3.5 pb-3">
+                <button
+                  type="button"
+                  onClick={() =>
+                    onStartGuidance({ itinerary: it, from, to })
+                  }
+                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0B5FFF] text-white text-sm font-bold py-2.5 active:scale-[0.98]"
+                >
+                  <Play className="w-4 h-4 fill-white" />
+                  Avvia indicazioni
+                </button>
+              </div>
+            )}
           </div>
         ))}
 
@@ -527,14 +626,13 @@ export default function TripPlannerSheet({
 
         {!loading && itineraries.length === 0 && !error && (
           <p className="text-[11px] text-slate-400 text-center px-4 py-2 leading-relaxed">
-            Scegli due punti e l’orario di partenza: ti mostro i percorsi più
-            rapidi con bus e tram. Poi puoi salvarlo (es. casa → lavoro) e
-            riaprirlo in un tap.
+            Cerca fermate oppure vie e corsi. Poi avvia le indicazioni sulla
+            mappa: vedrai il tragitto e solo i bus/tram di quelle linee.
           </p>
         )}
 
         <p className="text-[9px] text-slate-300 text-center pb-2">
-          Dati percorso · OpenTripPlanner / Muoversi a Torino
+          Percorsi · Muoversi a Torino · Vie · OpenStreetMap
         </p>
       </div>
     </div>

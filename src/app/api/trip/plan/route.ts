@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { TripItinerary, TripLeg } from "../../../../lib/tripPlan";
+import { decodePolyline } from "../../../../lib/polyline";
 
 const OTP_BASE = "https://plan.muoversiatorino.it/otp/routers/mato/plan";
 
@@ -14,6 +15,8 @@ function mapLeg(raw: Record<string, unknown>): TripLeg {
   const route =
     String(raw.routeShortName || raw.route || "").trim() ||
     (raw.transitLeg ? "?" : "");
+  const geom = (raw.legGeometry || {}) as { points?: string };
+  const points = decodePolyline(String(geom.points || ""));
   return {
     mode: String(raw.mode || "WALK"),
     route,
@@ -25,6 +28,7 @@ function mapLeg(raw: Record<string, unknown>): TripLeg {
     durationSec: asNum(raw.duration),
     distanceM: asNum(raw.distance),
     transit: Boolean(raw.transitLeg),
+    points,
   };
 }
 

@@ -13,6 +13,16 @@ export type RoadmapItem = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.13",
+    date: "2026-10-30",
+    title: "Indicazioni percorso sulla mappa",
+    items: [
+      "Ricerca anche vie, corsi e indirizzi (oltre alle fermate)",
+      "Avvia indicazioni: tragitto in mappa e solo i mezzi delle linee del percorso",
+      "Tasto Percorso in evidenza nella barra in basso",
+    ],
+  },
+  {
     version: "0.3.12",
     date: "2026-10-30",
     title: "Calcola percorso e scorciatoie",

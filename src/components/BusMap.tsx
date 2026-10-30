@@ -37,13 +37,19 @@ import MetroAccessibilitySheet from "./MetroAccessibilitySheet";
 import ShareModal from "./ShareModal";
 import AboutPrivacySheet from "./AboutPrivacySheet";
 import TripPlannerSheet from "./TripPlannerSheet";
+import TripGuidanceBanner from "./TripGuidanceBanner";
 import MapTopChrome from "./MapTopChrome";
 import MapSearchPanel from "./MapSearchPanel";
 import MapContextBanner from "./MapContextBanner";
 import MapBottomDock from "./MapBottomDock";
 import SheetHost from "./SheetHost";
 import { ShareData } from "../lib/shareUtils";
-import type { TripPlace } from "../lib/tripPlan";
+import {
+  itineraryAllPoints,
+  itineraryTransitLines,
+  type TripItinerary,
+  type TripPlace,
+} from "../lib/tripPlan";
 import { estimateScheduledVehicles } from "../lib/scheduleEstimator";
 import { registerServiceWorker } from "../lib/pwa";
 import { METRO_M1_ACCESSIBILITY } from "../lib/metroAccessibility";
@@ -589,6 +595,11 @@ export default function BusMap() {
     departTime?: string;
     autoSearch?: boolean;
   } | null>(null);
+  const [tripGuidance, setTripGuidance] = useState<{
+    itinerary: TripItinerary;
+    fromName: string;
+    toName: string;
+  } | null>(null);
   const [alertsCount, setAlertsCount] = useState(0);
   const [userCoords, setUserCoords] = useState<[number, number] | null>(null);
   const [shareModalData, setShareModalData] = useState<ShareData | null>(null);
@@ -645,6 +656,40 @@ export default function BusMap() {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const pollInFlightRef = useRef(false);
+
+  const clearTripGuidance = useCallback(() => {
+    setTripGuidance(null);
+    setSelectedLines(new Set());
+    setFitRouteTrigger(null);
+  }, []);
+
+  const startTripGuidance = useCallback(
+    (payload: {
+      itinerary: TripItinerary;
+      from: TripPlace;
+      to: TripPlace;
+    }) => {
+      const lines = itineraryTransitLines(payload.itinerary);
+      const next = new Set<string>();
+      for (const raw of lines) {
+        for (const id of expandLineFilter(normalizeLine(raw))) next.add(id);
+        next.add(normalizeLine(raw));
+      }
+      setSelectedLines(next);
+      setActiveVehicleRoute(null);
+      setShowEstimated(false);
+      setTripGuidance({
+        itinerary: payload.itinerary,
+        fromName: payload.from.name,
+        toName: payload.to.name,
+      });
+      const pts = itineraryAllPoints(payload.itinerary);
+      if (pts.length > 0) setFitRouteTrigger(L.latLngBounds(pts));
+      setTripInitial(null);
+      setActiveSheet(null);
+    },
+    []
+  );
 
   const openSheet = useCallback((sheet: ActiveSheet) => {
     setActiveSheet(sheet);
@@ -1251,48 +1296,121 @@ export default function BusMap() {
           onZoomChange={handleZoomChange}
         />
 
-        {activeShapes.map((shape, idx) => {
-          const color = lineColor(shape.line);
-          const isHighlight = shape.isVehicleRoute;
-          return (
-            <Fragment key={`shape-${shape.line}-${shape.dir}-${idx}`}>
-              <Polyline
-                positions={shape.pts}
-                pathOptions={{
-                  color: isHighlight ? "#0f172a" : "#ffffff",
-                  weight: isHighlight ? 8 : 6,
-                  opacity: isHighlight ? 0.95 : 0.85,
-                  lineCap: "round",
-                  lineJoin: "round",
-                }}
-              />
-              <Polyline
-                positions={shape.pts}
-                pathOptions={{
-                  color,
-                  weight: isHighlight ? 5 : 3.5,
-                  opacity: 1,
-                  dashArray: !isHighlight && shape.dir === "1" ? "8, 6" : undefined,
-                  lineCap: "round",
-                  lineJoin: "round",
-                }}
-              >
-                <Tooltip sticky>
-                  <div className="text-xs font-sans">
-                    <span className="font-bold">
-                      {isMetro(shape.line) ? "Metro M1" : `Linea ${shape.line}`}
-                    </span>
-                    {shape.headsign && (
-                      <div className="text-slate-600 font-medium">
-                        → {shape.headsign}
+        {tripGuidance
+          ? tripGuidance.itinerary.legs.map((leg, idx) => {
+              if (!leg.points || leg.points.length < 2) return null;
+              const color = leg.transit ? lineColor(leg.route) : "#64748b";
+              return (
+                <Fragment key={`guide-${idx}`}>
+                  <Polyline
+                    positions={leg.points}
+                    pathOptions={{
+                      color: "#0f172a",
+                      weight: leg.transit ? 8 : 6,
+                      opacity: 0.35,
+                      lineCap: "round",
+                      lineJoin: "round",
+                    }}
+                  />
+                  <Polyline
+                    positions={leg.points}
+                    pathOptions={{
+                      color,
+                      weight: leg.transit ? 5 : 3.5,
+                      opacity: 1,
+                      dashArray: leg.transit ? undefined : "7, 8",
+                      lineCap: "round",
+                      lineJoin: "round",
+                    }}
+                  >
+                    <Tooltip sticky>
+                      <div className="text-xs font-sans font-bold">
+                        {leg.transit
+                          ? `Linea ${leg.route}`
+                          : `A piedi · ${leg.fromName} → ${leg.toName}`}
                       </div>
-                    )}
-                  </div>
-                </Tooltip>
-              </Polyline>
-            </Fragment>
-          );
-        })}
+                    </Tooltip>
+                  </Polyline>
+                </Fragment>
+              );
+            })
+          : activeShapes.map((shape, idx) => {
+              const color = lineColor(shape.line);
+              const isHighlight = shape.isVehicleRoute;
+              return (
+                <Fragment key={`shape-${shape.line}-${shape.dir}-${idx}`}>
+                  <Polyline
+                    positions={shape.pts}
+                    pathOptions={{
+                      color: isHighlight ? "#0f172a" : "#ffffff",
+                      weight: isHighlight ? 8 : 6,
+                      opacity: isHighlight ? 0.95 : 0.85,
+                      lineCap: "round",
+                      lineJoin: "round",
+                    }}
+                  />
+                  <Polyline
+                    positions={shape.pts}
+                    pathOptions={{
+                      color,
+                      weight: isHighlight ? 5 : 3.5,
+                      opacity: 1,
+                      dashArray:
+                        !isHighlight && shape.dir === "1" ? "8, 6" : undefined,
+                      lineCap: "round",
+                      lineJoin: "round",
+                    }}
+                  >
+                    <Tooltip sticky>
+                      <div className="text-xs font-sans">
+                        <span className="font-bold">
+                          {isMetro(shape.line)
+                            ? "Metro M1"
+                            : `Linea ${shape.line}`}
+                        </span>
+                        {shape.headsign && (
+                          <div className="text-slate-600 font-medium">
+                            → {shape.headsign}
+                          </div>
+                        )}
+                      </div>
+                    </Tooltip>
+                  </Polyline>
+                </Fragment>
+              );
+            })}
+
+        {tripGuidance &&
+          (() => {
+            const pts = itineraryAllPoints(tripGuidance.itinerary);
+            if (pts.length === 0) return null;
+            const start = pts[0];
+            const end = pts[pts.length - 1];
+            return (
+              <>
+                <CircleMarker
+                  center={start}
+                  radius={8}
+                  pathOptions={{
+                    color: "#fff",
+                    weight: 2,
+                    fillColor: "#10b981",
+                    fillOpacity: 1,
+                  }}
+                />
+                <CircleMarker
+                  center={end}
+                  radius={8}
+                  pathOptions={{
+                    color: "#fff",
+                    weight: 2,
+                    fillColor: "#0B5FFF",
+                    fillOpacity: 1,
+                  }}
+                />
+              </>
+            );
+          })()}
 
         {visibleVehicles.map((v) => (
             <VehicleMarkerItem
@@ -1338,17 +1456,30 @@ export default function BusMap() {
             onSelectDirection={setSelectedDirection}
             availableDirections={availableDirections}
           />
-          {activeVehicleRoute && (
-            <MapContextBanner
-              line={activeVehicleRoute.line}
-              headsign={activeVehicleRoute.headsign}
-              isEstimated={activeVehicle?.isEstimated}
-              onShare={() => {
-                if (activeVehicle) handleShareVehicle(activeVehicle);
+          {tripGuidance ? (
+            <TripGuidanceBanner
+              itinerary={tripGuidance.itinerary}
+              fromName={tripGuidance.fromName}
+              toName={tripGuidance.toName}
+              onClear={clearTripGuidance}
+              onFit={() => {
+                const pts = itineraryAllPoints(tripGuidance.itinerary);
+                if (pts.length > 0) setFitRouteTrigger(L.latLngBounds(pts));
               }}
-              onFit={() => handleFitRouteForLine(activeVehicleRoute.line)}
-              onClear={() => setActiveVehicleRoute(null)}
             />
+          ) : (
+            activeVehicleRoute && (
+              <MapContextBanner
+                line={activeVehicleRoute.line}
+                headsign={activeVehicleRoute.headsign}
+                isEstimated={activeVehicle?.isEstimated}
+                onShare={() => {
+                  if (activeVehicle) handleShareVehicle(activeVehicle);
+                }}
+                onFit={() => handleFitRouteForLine(activeVehicleRoute.line)}
+                onClear={() => setActiveVehicleRoute(null)}
+              />
+            )
           )}
         </div>
       </div>
@@ -1545,6 +1676,7 @@ export default function BusMap() {
             stops={allStops}
             userCoords={userCoords}
             initial={tripInitial}
+            onStartGuidance={startTripGuidance}
           />
         )}
       </SheetHost>

@@ -171,12 +171,12 @@ export default function MapBottomDock({
             <button
               onClick={() => {
                 setMenuOpen(false);
-                onOpenTrip();
+                onRefreshVehicles();
               }}
               className="w-full flex items-center gap-2.5 px-3.5 py-3 text-left text-sm font-semibold text-slate-800 active:bg-slate-50 border-b border-slate-100"
             >
-              <Route className="w-4 h-4 text-[#0B5FFF]" />
-              Calcola percorso
+              <RefreshCw className={`w-4 h-4 text-[#0B5FFF] ${refreshing ? "animate-spin" : ""}`} />
+              Aggiorna mezzi
             </button>
             <button
               onClick={() => {
@@ -242,17 +242,12 @@ export default function MapBottomDock({
           <div className="w-px bg-slate-200/80 my-2" />
           <button
             type="button"
-            onClick={onRefreshVehicles}
-            disabled={refreshing}
-            className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 active:scale-[0.97] active:bg-slate-50/80 text-slate-700 transition-transform disabled:opacity-60"
-            aria-label="Aggiorna posizione mezzi"
+            onClick={onOpenTrip}
+            className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 active:scale-[0.97] active:bg-blue-50/80 text-[#0B5FFF] transition-transform"
+            aria-label="Calcola percorso"
           >
-            <RefreshCw
-              className={`w-5 h-5 text-[#0B5FFF] ${refreshing ? "animate-spin" : ""}`}
-            />
-            <span className="text-[10px] font-bold">
-              {refreshing ? "Attendi" : "Aggiorna"}
-            </span>
+            <Route className="w-5 h-5" />
+            <span className="text-[10px] font-black">Percorso</span>
           </button>
           <div className="w-px bg-slate-200/80 my-2" />
           <button
