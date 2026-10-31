@@ -13,6 +13,15 @@ export type RoadmapItem = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.20",
+    date: "2026-10-31",
+    title: "Foto E-Way, Urbanway, MAN e BMC",
+    items: [
+      "9400–9535 mostra il 9400, 9600–9661 il 9600, Urbanway il 9304",
+      "MAN 85–89 e BMC 110–115 hanno la foto del mezzo GTT",
+    ],
+  },
+  {
     version: "0.3.19",
     date: "2026-10-31",
     title: "Foto dell’E-Way BRT 9716",

@@ -114,6 +114,36 @@ const EWAY_BRT: FleetPhoto = {
   license: "GTT",
   licenseUrl: "https://www.gtt.to.it/",
 };
+const EWAY_12: FleetPhoto = {
+  src: "/fleet/gtt-9400.jpg",
+  author: "Nomen",
+  license: "© 9400",
+  licenseUrl: "https://www.gtt.to.it/",
+};
+const EWAY_18: FleetPhoto = {
+  src: "/fleet/gtt-9600.jpg",
+  author: "9600",
+  license: "GTT",
+  licenseUrl: "https://www.gtt.to.it/",
+};
+const URBANWAY: FleetPhoto = {
+  src: "/fleet/gtt-9304.jpg",
+  author: "9304",
+  license: "GTT",
+  licenseUrl: "https://www.gtt.to.it/",
+};
+const MAN: FleetPhoto = {
+  src: "/fleet/gtt-85.png",
+  author: "85",
+  license: "GTT",
+  licenseUrl: "https://www.gtt.to.it/",
+};
+const BMC: FleetPhoto = {
+  src: "/fleet/gtt-114.png",
+  author: "114",
+  license: "GTT",
+  licenseUrl: "https://www.gtt.to.it/",
+};
 
 const SERIES: Series[] = [
   { from: 2801, to: 2857, name: "Tram serie 2800", detail: "1ª serie, motrice articolata", photo: TRAM_2800 },
@@ -123,8 +153,8 @@ const SERIES: Series[] = [
   { from: 6006, to: 6054, name: "Alstom Cityway", detail: "Tram serie 6000, bidirezionale, piano ribassato", photo: CITYWAY },
   { from: 7000, to: 7039, name: "Tram serie 7000", detail: "Motrice AEG" },
   { from: 8001, to: 8070, name: "Hitachi Rail", detail: "Tram serie 8000, 28 m, monodirezionale", photo: TRAM_8000 },
-  { from: 85, to: 89, name: "MAN Lion's City", detail: "10 m, diesel Euro 4" },
-  { from: 110, to: 115, name: "BMC Neocity", detail: "8,5 m, diesel Euro 6" },
+  { from: 85, to: 89, name: "MAN Lion's City", detail: "10 m, diesel Euro 4", photo: MAN },
+  { from: 110, to: 115, name: "BMC Neocity", detail: "8,5 m, diesel Euro 6", photo: BMC },
   { from: 320, to: 365, name: "Iveco Crossway", detail: "12 m, extraurbano", photo: CROSSWAY },
   { from: 366, to: 406, name: "Iveco Crossway LE", detail: "12 m, extraurbano", photo: CROSSWAY },
   { from: 601, to: 650, name: "Iveco Crossway", detail: "12 m, extraurbano", photo: CROSSWAY },
@@ -150,9 +180,9 @@ const SERIES: Series[] = [
   { from: 9000, to: 9059, name: "BYD K9", detail: "12 m, elettrico", photo: BYD },
   { from: 9060, to: 9121, name: "BYD K9", detail: "12 m, elettrico", photo: BYD },
   { from: 9200, to: 9261, name: "Menarinibus Citymood", detail: "12 m, metano", photo: CITYMOOD },
-  { from: 9300, to: 9356, name: "Iveco Urbanway", detail: "18 m, metano" },
-  { from: 9400, to: 9535, name: "Iveco E-Way", detail: "12 m, elettrico" },
-  { from: 9600, to: 9661, name: "Iveco E-Way", detail: "18 m, elettrico" },
+  { from: 9300, to: 9356, name: "Iveco Urbanway", detail: "18 m, metano", photo: URBANWAY },
+  { from: 9400, to: 9535, name: "Iveco E-Way", detail: "12 m, elettrico", photo: EWAY_12 },
+  { from: 9600, to: 9661, name: "Iveco E-Way", detail: "18 m, elettrico", photo: EWAY_18 },
   { from: 9700, to: 9727, name: "Iveco E-Way BRT", detail: "18 m, elettrico, linea di forza", photo: EWAY_BRT },
 ];
 
