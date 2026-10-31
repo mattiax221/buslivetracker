@@ -7,6 +7,7 @@ interface MapContextBannerProps {
   line: string;
   headsign?: string;
   isEstimated?: boolean;
+  notice?: string;
   onShare: () => void;
   onFit: () => void;
   onClear: () => void;
@@ -16,6 +17,7 @@ export default function MapContextBanner({
   line,
   headsign,
   isEstimated,
+  notice,
   onShare,
   onFit,
   onClear,
@@ -40,6 +42,11 @@ export default function MapContextBanner({
             {headsign && (
               <span className="text-slate-300 font-normal ml-1.5 truncate">
                 → {headsign}
+              </span>
+            )}
+            {notice && (
+              <span className="block text-[10px] font-bold text-amber-300 truncate">
+                {notice}
               </span>
             )}
           </div>

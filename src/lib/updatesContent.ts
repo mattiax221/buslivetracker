@@ -13,6 +13,15 @@ export type RoadmapItem = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.21",
+    date: "2026-10-31",
+    title: "Deviazioni in evidenza sulla mappa",
+    items: [
+      "Una striscia in alto segnala deviazioni, scioperi e linee ferme, senza aprire gli avvisi",
+      "Il mezzo della linea interessata ha un bordo ambra e il dettaglio nel popup",
+    ],
+  },
+  {
     version: "0.3.20",
     date: "2026-10-31",
     title: "Foto E-Way, Urbanway, MAN e BMC",

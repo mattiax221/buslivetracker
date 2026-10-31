@@ -41,9 +41,16 @@ import TripGuidanceBanner from "./TripGuidanceBanner";
 import MapTopChrome from "./MapTopChrome";
 import MapSearchPanel from "./MapSearchPanel";
 import MapContextBanner from "./MapContextBanner";
+import DisruptionBanner from "./DisruptionBanner";
 import MapBottomDock from "./MapBottomDock";
 import SheetHost from "./SheetHost";
 import { ShareData } from "../lib/shareUtils";
+import {
+  disruptionSummary,
+  indexDisruptions,
+  type AlertLike,
+  type LineDisruption,
+} from "../lib/disruptions";
 import {
   itineraryAllPoints,
   itineraryTransitLines,
@@ -144,16 +151,19 @@ function getVehicleIcon(
   line: string,
   heading: number,
   isEstimated?: boolean,
-  isStopped?: boolean
+  isStopped?: boolean,
+  disrupted?: boolean
 ): L.DivIcon {
   const roundedRot = Math.round((heading || 0) / 12) * 12;
-  const key = `${line}_${roundedRot}_${isEstimated ? "est" : "real"}_${isStopped ? "stop" : "go"}`;
+  const key = `${line}_${roundedRot}_${isEstimated ? "est" : "real"}_${isStopped ? "stop" : "go"}_${disrupted ? "warn" : "ok"}`;
   let icon = vehicleIconCache.get(key);
   if (!icon) {
     const color = lineColor(line);
     const borderStyle = isEstimated
       ? "2px dashed #fbbf24"
-      : "2px solid rgba(255,255,255,0.95)";
+      : disrupted
+        ? "2px solid #d97706"
+        : "2px solid rgba(255,255,255,0.95)";
     const opacity = isEstimated ? "0.94" : "1";
     const shadow = isEstimated
       ? "0 2px 8px rgba(245,158,11,0.45)"
@@ -177,6 +187,7 @@ function getVehicleIcon(
             justify-content: center; gap: 3px; letter-spacing: 0.02em;
           ">
             ${isEstimated ? `<span style="font-size:9px;opacity:0.95">⏱</span>` : ""}
+            ${disrupted ? `<span style="font-size:10px;line-height:1">!</span>` : ""}
             <span>${line}</span>
           </div>
         </div>
@@ -263,6 +274,8 @@ const VehicleMarkerItem = memo(function VehicleMarkerItem({
   onSelectVehicle,
   onFitRoute,
   onShareVehicle,
+  disruption,
+  onOpenAlerts,
 }: {
   vehicle: Vehicle;
   detailOpen: boolean;
@@ -270,6 +283,8 @@ const VehicleMarkerItem = memo(function VehicleMarkerItem({
   onSelectVehicle?: (v: Vehicle) => void;
   onFitRoute?: (line: string) => void;
   onShareVehicle?: (v: Vehicle) => void;
+  disruption?: LineDisruption;
+  onOpenAlerts?: () => void;
 }) {
   const metro = isMetro(vehicle.line);
   const tram = !metro && isTram(vehicle.line);
@@ -279,7 +294,8 @@ const VehicleMarkerItem = memo(function VehicleMarkerItem({
     vehicle.line,
     vehicle.heading,
     vehicle.isEstimated,
-    vehicle.speed <= 1.8
+    vehicle.speed <= 1.8,
+    Boolean(disruption)
   );
 
   useEffect(() => {
@@ -293,8 +309,8 @@ const VehicleMarkerItem = memo(function VehicleMarkerItem({
         center={[vehicle.lat, vehicle.lon]}
         radius={vehicle.isEstimated ? 5 : 6}
         pathOptions={{
-          color: "#fff",
-          weight: 1,
+          color: disruption ? "#d97706" : "#fff",
+          weight: disruption ? 2 : 1,
           fillColor: color,
           fillOpacity: vehicle.isEstimated ? 0.55 : 0.92,
         }}
@@ -338,6 +354,26 @@ const VehicleMarkerItem = memo(function VehicleMarkerItem({
               </span>
             )}
           </div>
+
+          {disruption && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenAlerts?.();
+              }}
+              className={`w-full text-left mt-1.5 px-2 py-1.5 rounded-lg border text-[11px] font-bold leading-snug ${
+                disruption.kind === "strike" || disruption.kind === "suspended"
+                  ? "bg-rose-50 text-rose-800 border-rose-200"
+                  : "bg-amber-50 text-amber-900 border-amber-200"
+              }`}
+            >
+              <span className="block">{disruption.label}</span>
+              {disruption.header && (
+                <span className="block font-medium truncate">{disruption.header}</span>
+              )}
+            </button>
+          )}
 
           {vehicle.headsign && (
             <div className="text-xs font-semibold text-slate-700 mt-1">
@@ -648,6 +684,7 @@ export default function BusMap() {
     toName: string;
   } | null>(null);
   const [alertsCount, setAlertsCount] = useState(0);
+  const [serviceAlerts, setServiceAlerts] = useState<AlertLike[]>([]);
   const [userCoords, setUserCoords] = useState<[number, number] | null>(null);
   const [shareModalData, setShareModalData] = useState<ShareData | null>(null);
 
@@ -823,10 +860,23 @@ export default function BusMap() {
       .then((data: OfficialRoute[]) => setOfficialRoutes(data))
       .catch((err) => console.error("Error loading routes.json:", err));
 
-    fetch("/api/alerts")
-      .then((res) => res.json())
-      .then((data) => setAlertsCount(data.count || 0))
-      .catch((err) => console.error("Error checking alerts:", err));
+    let cancelled = false;
+    const loadAlerts = () => {
+      fetch("/api/alerts")
+        .then((res) => res.json())
+        .then((data) => {
+          if (cancelled) return;
+          setAlertsCount(data.count || 0);
+          setServiceAlerts(Array.isArray(data.alerts) ? data.alerts : []);
+        })
+        .catch((err) => console.error("Error checking alerts:", err));
+    };
+    loadAlerts();
+    const alertsTimer = window.setInterval(loadAlerts, 3 * 60 * 1000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(alertsTimer);
+    };
   }, []);
 
   // ~3MB shapes: load only when drawing a route or enabling scheduled estimates
@@ -1110,6 +1160,15 @@ export default function BusMap() {
     filteredVehicles,
     showEstimated,
   ]);
+
+  const disruptionIndex = useMemo(() => indexDisruptions(serviceAlerts), [serviceAlerts]);
+  const disruptionBanner = useMemo(
+    () => disruptionSummary(disruptionIndex.byLine, disruptionIndex.citywide),
+    [disruptionIndex]
+  );
+  const activeLineDisruption = activeVehicleRoute
+    ? disruptionIndex.byLine.get(activeVehicleRoute.line.replace(/\s+/g, "").toUpperCase())
+    : undefined;
 
   const handleToggleLine = useCallback((rawLine: string) => {
     setSelectedDirection(null);
@@ -1583,6 +1642,8 @@ export default function BusMap() {
               onSelectVehicle={handleSelectVehicle}
               onFitRoute={handleFitRouteForLine}
               onShareVehicle={handleShareVehicle}
+              disruption={disruptionIndex.byLine.get(v.line.replace(/\s+/g, "").toUpperCase())}
+              onOpenAlerts={() => openSheet("alerts")}
             />
           ))}
 
@@ -1599,6 +1660,13 @@ export default function BusMap() {
           isLive={isLive && !error}
           onOpenAlerts={() => openSheet("alerts")}
         />
+        {disruptionBanner && (
+          <DisruptionBanner
+            text={disruptionBanner.text}
+            tone={disruptionBanner.tone}
+            onOpen={() => openSheet("alerts")}
+          />
+        )}
         <div className="pointer-events-none">
           <MapSearchPanel
             allLines={allLines}
@@ -1635,6 +1703,11 @@ export default function BusMap() {
                 line={activeVehicleRoute.line}
                 headsign={activeVehicleRoute.headsign}
                 isEstimated={activeVehicle?.isEstimated}
+                notice={
+                  activeLineDisruption
+                    ? `${activeLineDisruption.label}${activeLineDisruption.header ? ` · ${activeLineDisruption.header}` : ""}`
+                    : undefined
+                }
                 onShare={() => {
                   if (activeVehicle) handleShareVehicle(activeVehicle);
                 }}
