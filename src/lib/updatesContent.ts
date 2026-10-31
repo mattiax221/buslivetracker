@@ -13,6 +13,15 @@ export type RoadmapItem = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.18",
+    date: "2026-10-31",
+    title: "Solo foto di mezzi GTT",
+    items: [
+      "Tolta la foto dell’E-Way di un’altra città. Il BYD ora è il 9006 in livrea giallo-blu",
+      "Foto GTT aggiunte per Crossway, Van Hool AG300 e tram serie 2800",
+    ],
+  },
+  {
     version: "0.3.17",
     date: "2026-10-31",
     title: "Foto E-Way e tram serie 8000",

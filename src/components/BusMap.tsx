@@ -235,7 +235,6 @@ function FleetLine({ fleet }: { fleet: string }) {
             loading="lazy"
           />
           <figcaption className="mt-0.5 text-[9px] text-slate-400">
-            {info.photo.note ? <span className="block">{info.photo.note}</span> : null}
             Foto {info.photo.author} · {info.photo.license}
           </figcaption>
         </figure>
