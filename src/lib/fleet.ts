@@ -4,10 +4,18 @@
  * (parco veicoli GTT, tplitalia). Unknown numbers stay unlabeled.
  */
 
+export type FleetPhoto = {
+  src: string;
+  author: string;
+  license: string;
+  licenseUrl: string;
+};
+
 export type FleetInfo = {
   fleet: string;
   name: string;
   detail: string;
+  photo?: FleetPhoto;
 };
 
 type Series = {
@@ -15,14 +23,29 @@ type Series = {
   to: number;
   name: string;
   detail: string;
+  photo?: FleetPhoto;
+};
+
+const CITYWAY: FleetPhoto = {
+  src: "https://commons.wikimedia.org/wiki/Special:FilePath/CitywayReal2.jpg?width=640",
+  author: "LL90TO",
+  license: "CC BY-SA 3.0",
+  licenseUrl: "https://creativecommons.org/licenses/by-sa/3.0",
+};
+
+const TRAM_5000: FleetPhoto = {
+  src: "https://commons.wikimedia.org/wiki/Special:FilePath/Tram%20Torino%205043.JPG?width=640",
+  author: "Ale Sasso",
+  license: "CC BY-SA 3.0",
+  licenseUrl: "https://creativecommons.org/licenses/by-sa/3.0",
 };
 
 const SERIES: Series[] = [
   { from: 2801, to: 2857, name: "Tram serie 2800", detail: "1ª serie, motrice articolata" },
   { from: 2858, to: 2902, name: "Tram serie 2800", detail: "2ª serie, motrice articolata" },
-  { from: 5000, to: 5053, name: "Tram serie 5000", detail: "Fiat, piano parzialmente ribassato" },
-  { from: 6000, to: 6005, name: "Alstom Cityway", detail: "Tram serie 6000, monodirezionale, piano ribassato" },
-  { from: 6006, to: 6054, name: "Alstom Cityway", detail: "Tram serie 6000, bidirezionale, piano ribassato" },
+  { from: 5000, to: 5053, name: "Tram serie 5000", detail: "Fiat, piano parzialmente ribassato", photo: TRAM_5000 },
+  { from: 6000, to: 6005, name: "Alstom Cityway", detail: "Tram serie 6000, monodirezionale, piano ribassato", photo: CITYWAY },
+  { from: 6006, to: 6054, name: "Alstom Cityway", detail: "Tram serie 6000, bidirezionale, piano ribassato", photo: CITYWAY },
   { from: 7000, to: 7039, name: "Tram serie 7000", detail: "Motrice AEG" },
   { from: 2300, to: 2334, name: "Irisbus CityClass", detail: "12 m, diesel Euro 3" },
   { from: 2335, to: 2349, name: "Irisbus CityClass", detail: "12 m, diesel Euro 4" },
@@ -58,5 +81,5 @@ export function lookupFleet(raw: string | undefined | null): FleetInfo | null {
   if (!fleet || !Number.isFinite(n)) return null;
   const hit = SERIES.find((s) => n >= s.from && n <= s.to);
   if (!hit) return { fleet, name: "", detail: "" };
-  return { fleet, name: hit.name, detail: hit.detail };
+  return { fleet, name: hit.name, detail: hit.detail, photo: hit.photo };
 }

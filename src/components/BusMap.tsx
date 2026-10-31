@@ -226,6 +226,19 @@ function FleetLine({ fleet }: { fleet: string }) {
   if (!info) return null;
   return (
     <div className="mt-1.5 text-[11px] leading-snug">
+      {info.photo && (
+        <figure className="mb-1.5 -mx-1">
+          <img
+            src={info.photo.src}
+            alt={info.name || `Matricola ${info.fleet}`}
+            className="w-full h-28 object-cover rounded-lg bg-slate-100"
+            loading="lazy"
+          />
+          <figcaption className="mt-0.5 text-[9px] text-slate-400">
+            Foto {info.photo.author} · {info.photo.license}
+          </figcaption>
+        </figure>
+      )}
       <div className="font-bold text-slate-800">Matricola {info.fleet}</div>
       {info.name ? (
         <div className="text-slate-600">
