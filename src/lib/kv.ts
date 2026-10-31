@@ -61,6 +61,29 @@ export async function kvSet(key: string, value: string): Promise<void> {
   await redisFetch(["SET", key, value]);
 }
 
+/** Set only if the key is absent. Returns false when another writer holds it. */
+export async function kvSetNx(
+  key: string,
+  value: string,
+  ttlSeconds: number
+): Promise<boolean> {
+  if (!hasKvEnv()) {
+    if (memory.has(key)) return false;
+    memory.set(key, value);
+    setTimeout(() => memory.delete(key), ttlSeconds * 1000);
+    return true;
+  }
+  const result = await redisFetch<string | null>([
+    "SET",
+    key,
+    value,
+    "NX",
+    "EX",
+    ttlSeconds,
+  ]);
+  return result === "OK";
+}
+
 /** Push JSON string to the left of a list, then trim to maxLen. */
 export async function kvListPush(
   key: string,
@@ -84,10 +107,23 @@ export async function kvListRange(
 ): Promise<string[]> {
   if (!hasKvEnv()) {
     const list = memoryLists.get(key) ?? [];
+    if (end < 0) return list.slice(start);
     return list.slice(start, end + 1);
   }
   const result = await redisFetch<string[]>(["LRANGE", key, start, end]);
   return result ?? [];
+}
+
+export async function kvListRemove(key: string, value: string): Promise<void> {
+  if (!hasKvEnv()) {
+    const list = memoryLists.get(key) ?? [];
+    memoryLists.set(
+      key,
+      list.filter((row) => row !== value)
+    );
+    return;
+  }
+  await redisFetch(["LREM", key, 0, value]);
 }
 
 /** Simple fixed-window rate limit. Returns true if allowed. */

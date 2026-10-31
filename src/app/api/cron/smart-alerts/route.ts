@@ -6,6 +6,7 @@ import {
   type PushSubJSON,
 } from "../../../../lib/push";
 import { fetchStopArrivals } from "../../../../lib/stopArrivals";
+import { announceLatestChangelog } from "../../../../lib/changelogPush";
 
 type PrefRow = {
   endpoint: string;
@@ -45,6 +46,8 @@ export async function GET(req: NextRequest) {
   if (!isPushConfigured()) {
     return NextResponse.json({ ok: false, reason: "no-vapid" });
   }
+
+  const changelog = await announceLatestChangelog();
 
   const rows = await kvListRange(PREFS_LIST, 0, 199);
   const seen = new Set<string>();
@@ -92,5 +95,5 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ ok: true, checked, sent });
+  return NextResponse.json({ ok: true, checked, sent, changelog });
 }

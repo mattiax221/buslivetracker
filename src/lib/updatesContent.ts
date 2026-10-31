@@ -13,6 +13,14 @@ export type RoadmapItem = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.22",
+    date: "2026-10-31",
+    title: "Notifica a ogni aggiornamento",
+    items: [
+      "Chi ha le notifiche attive riceve una push a ogni novità, anche con l’app chiusa",
+    ],
+  },
+  {
     version: "0.3.21",
     date: "2026-10-31",
     title: "Deviazioni in evidenza sulla mappa",
