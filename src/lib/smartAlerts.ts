@@ -95,22 +95,26 @@ async function showLocalNotification(
   new Notification(title, { body, icon: "/icon-192.png" });
 }
 
-/** Sync prefs to KV so a future cron can alert with app closed. Best-effort. */
+/** Sync prefs to KV so cron can alert with the app closed. */
 export async function syncSmartAlertPrefs(input: {
   lines: string[];
   stops: { code: string; name: string }[];
   enabled: boolean;
-}): Promise<void> {
+}): Promise<{ ok: boolean; error?: string }> {
   if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) {
-    return;
+    return { ok: false, error: "Service worker non disponibile." };
   }
   try {
     const reg = await navigator.serviceWorker.ready;
     const sub = await reg.pushManager.getSubscription();
-    if (!sub) return;
+    if (!sub) {
+      return { ok: false, error: "Attiva prima le notifiche." };
+    }
     const json = sub.toJSON();
-    if (!json.endpoint || !json.keys) return;
-    await fetch("/api/push/prefs", {
+    if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {
+      return { ok: false, error: "Iscrizione push incompleta." };
+    }
+    const res = await fetch("/api/push/prefs", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -121,8 +125,13 @@ export async function syncSmartAlertPrefs(input: {
         stops: input.stops.slice(0, MAX_STOPS_CHECKED),
       }),
     });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      return { ok: false, error: data.error || "Salvataggio avvisi fallito." };
+    }
+    return { ok: true };
   } catch {
-    /* ignore network */
+    return { ok: false, error: "Rete non disponibile." };
   }
 }
 

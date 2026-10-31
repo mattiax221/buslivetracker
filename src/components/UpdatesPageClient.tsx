@@ -45,6 +45,16 @@ export default function UpdatesPageClient() {
 
   useEffect(() => {
     setSmartOn(isSmartAlertsEnabled());
+    // Sheet lock on the map can leave body position:fixed and kill scroll here
+    const html = document.documentElement;
+    const body = document.body;
+    html.style.overflow = "";
+    body.style.overflow = "";
+    body.style.position = "";
+    body.style.top = "";
+    body.style.left = "";
+    body.style.right = "";
+    body.style.width = "";
   }, []);
 
   const loadSuggestions = useCallback(async () => {
@@ -226,7 +236,7 @@ export default function UpdatesPageClient() {
   };
 
   return (
-    <div className="min-h-dvh bg-[#F0F4F8] text-slate-900 overflow-y-auto overscroll-y-contain">
+    <div className="fixed inset-0 overflow-y-auto overscroll-y-contain bg-[#F0F4F8] text-slate-900">
       <header className="sticky top-0 z-20 pt-safe bg-white/90 backdrop-blur-xl border-b border-slate-200/80">
         <div className="max-w-lg mx-auto px-4 py-3 flex items-center gap-3">
           <Link
@@ -546,33 +556,57 @@ export default function UpdatesPageClient() {
                   type="button"
                   aria-pressed={smartOn}
                   onClick={() => {
-                    const next = !smartOn;
-                    setSmartOn(next);
-                    setSmartAlertsEnabled(next);
-                    try {
-                      const lines = JSON.parse(
-                        localStorage.getItem("gtt_fav_lines") || "[]"
-                      ) as string[];
-                      const stops = JSON.parse(
-                        localStorage.getItem("gtt_fav_stops") || "[]"
-                      ) as { code: string; name: string }[];
-                      void syncSmartAlertPrefs({
+                    void (async () => {
+                      const next = !smartOn;
+                      setSmartOn(next);
+                      setSmartAlertsEnabled(next);
+                      if (next) {
+                        const sub = await subscribeDevicePush(vapidKey);
+                        if (!sub.ok) {
+                          setSmartOn(false);
+                          setSmartAlertsEnabled(false);
+                          setPushStatus(sub.error || "Attiva prima le notifiche.");
+                          return;
+                        }
+                        setEndpoint(sub.endpoint || null);
+                      }
+                      let lines: string[] = [];
+                      let stops: { code: string; name: string }[] = [];
+                      try {
+                        const rawLines = JSON.parse(
+                          localStorage.getItem("gtt_fav_lines") || "[]"
+                        );
+                        const rawStops = JSON.parse(
+                          localStorage.getItem("gtt_fav_stops") || "[]"
+                        );
+                        lines = Array.isArray(rawLines) ? rawLines : [];
+                        stops = Array.isArray(rawStops) ? rawStops : [];
+                      } catch {
+                        /* ignore */
+                      }
+                      const saved = await syncSmartAlertPrefs({
                         enabled: next,
-                        lines: Array.isArray(lines) ? lines : [],
-                        stops: Array.isArray(stops) ? stops : [],
+                        lines,
+                        stops,
                       });
-                    } catch {
-                      void syncSmartAlertPrefs({
-                        enabled: next,
-                        lines: [],
-                        stops: [],
-                      });
-                    }
-                    setPushStatus(
-                      next
-                        ? "Avvisi attivi: ~50s con app aperta; a app chiusa serve il cron GitHub (vedi nota sopra)."
-                        : "Avvisi preferiti disattivati."
-                    );
+                      if (!next) {
+                        setPushStatus("Avvisi preferiti disattivati.");
+                        return;
+                      }
+                      if (!saved.ok) {
+                        setPushStatus(saved.error || "Avvisi non salvati sul server.");
+                        return;
+                      }
+                      if (stops.length === 0 && lines.length === 0) {
+                        setPushStatus(
+                          "Avvisi salvati, ma non hai preferiti. Salva una fermata o una linea, poi riaccendi questo interruttore."
+                        );
+                        return;
+                      }
+                      setPushStatus(
+                        `Avvisi salvati (${stops.length} fermate, ${lines.length} linee). A app chiusa il controllo è ogni ~5 min se GitHub Actions è attivo.`
+                      );
+                    })();
                   }}
                   className={`w-11 h-6 rounded-full p-0.5 shrink-0 transition-colors ${
                     smartOn ? "bg-[#0B5FFF]" : "bg-slate-300"

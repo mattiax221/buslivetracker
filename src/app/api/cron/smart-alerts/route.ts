@@ -5,6 +5,7 @@ import {
   sendPushToSubscription,
   type PushSubJSON,
 } from "../../../../lib/push";
+import { fetchStopArrivals } from "../../../../lib/stopArrivals";
 
 type PrefRow = {
   endpoint: string;
@@ -16,31 +17,20 @@ type PrefRow = {
 
 const PREFS_LIST = "gtt:alert:prefs";
 const COOLDOWN_MS = 12 * 60 * 1000;
+/** Wide enough that a 5-minute cron actually catches a bus. */
+const SOON_MIN = 12;
 
 async function nextArrivalMinutes(stopCode: string): Promise<{
   line: string;
   minutes: number;
 } | null> {
-  const base =
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null);
-  if (!base) return null;
   try {
-    const res = await fetch(
-      `${base.replace(/\/$/, "")}/api/stops/arrivals?stop=${encodeURIComponent(stopCode)}`,
-      { cache: "no-store" }
-    );
-    if (!res.ok) return null;
-    const data = await res.json();
-    const arrivals = Array.isArray(data.arrivals) ? data.arrivals : [];
+    const arrivals = await fetchStopArrivals(stopCode);
     const soon = arrivals.find(
-      (a: { minutesRemaining?: number; line?: string }) =>
-        typeof a.minutesRemaining === "number" &&
-        a.minutesRemaining >= 0 &&
-        a.minutesRemaining <= 4
+      (a) => a.minutesRemaining >= 0 && a.minutesRemaining <= SOON_MIN
     );
     if (!soon) return null;
-    return { line: String(soon.line), minutes: soon.minutesRemaining as number };
+    return { line: soon.line, minutes: soon.minutesRemaining };
   } catch {
     return null;
   }
