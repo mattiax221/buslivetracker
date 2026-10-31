@@ -263,6 +263,10 @@ html[data-theme="dark"] .gtt-sheet .bg-white {
   margin: 10px 14px !important;
 }
 
+.vehicle-pop .leaflet-popup-content {
+  margin: 8px 10px !important;
+}
+
 .leaflet-popup-tip {
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1) !important;
 }

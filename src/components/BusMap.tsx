@@ -243,29 +243,31 @@ function FleetLine({ fleet }: { fleet: string }) {
   const info = lookupFleet(fleet);
   if (!info) return null;
   return (
-    <div className="mt-1.5 text-[11px] leading-snug">
+    <div className="mt-1 flex gap-1.5 items-center">
       {info.photo && (
-        <figure className="mb-1.5 -mx-1">
-          <img
-            src={info.photo.src}
-            alt={info.name || `Matricola ${info.fleet}`}
-            className="w-full h-28 object-cover rounded-lg bg-slate-100"
-            loading="lazy"
-          />
-          <figcaption className="mt-0.5 text-[9px] text-slate-400">
+        <img
+          src={info.photo.src}
+          alt={info.name || `Matricola ${info.fleet}`}
+          className="w-12 h-9 object-cover rounded-md bg-slate-100 shrink-0"
+          loading="lazy"
+        />
+      )}
+      <div className="min-w-0 text-[11px] leading-tight">
+        <div className="font-bold text-slate-800 truncate">Matricola {info.fleet}</div>
+        {info.name ? (
+          <div className="text-slate-600 truncate">
+            {info.name}
+            {info.detail ? ` · ${info.detail}` : ""}
+          </div>
+        ) : (
+          <div className="text-slate-400">Serie non in archivio</div>
+        )}
+        {info.photo && (
+          <div className="text-[9px] text-slate-400 truncate">
             Foto {info.photo.author} · {info.photo.license}
-          </figcaption>
-        </figure>
-      )}
-      <div className="font-bold text-slate-800">Matricola {info.fleet}</div>
-      {info.name ? (
-        <div className="text-slate-600">
-          {info.name}
-          {info.detail ? ` · ${info.detail}` : ""}
-        </div>
-      ) : (
-        <div className="text-slate-400">Serie non in archivio</div>
-      )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -344,9 +346,9 @@ const VehicleMarkerItem = memo(function VehicleMarkerItem({
       eventHandlers={{ click: () => onSelectVehicle?.(vehicle) }}
     >
       {detailOpen && (
-      <Popup>
-        <div className="text-sm min-w-[190px] p-1 font-sans">
-          <div className="font-bold text-base text-slate-900 flex items-center justify-between gap-1.5">
+      <Popup maxWidth={220} minWidth={196} className="vehicle-pop">
+        <div className="w-[196px] font-sans">
+          <div className="font-bold text-sm text-slate-900 flex items-center justify-between gap-1.5">
             <div className="flex items-center gap-1.5">
               {metro ? (
                 <TrainTrack className="w-4 h-4 text-rose-600" />
@@ -379,16 +381,14 @@ const VehicleMarkerItem = memo(function VehicleMarkerItem({
                 e.stopPropagation();
                 onOpenAlerts?.();
               }}
-              className={`w-full text-left mt-1.5 px-2 py-1.5 rounded-lg border text-[11px] font-bold leading-snug ${
+              className={`w-full text-left mt-1 px-1.5 py-1 rounded-md border text-[10px] font-bold leading-tight truncate ${
                 disruption.kind === "strike" || disruption.kind === "suspended"
                   ? "bg-rose-50 text-rose-800 border-rose-200"
                   : "bg-amber-50 text-amber-900 border-amber-200"
               }`}
             >
-              <span className="block">{disruption.label}</span>
-              {disruption.header && (
-                <span className="block font-medium truncate">{disruption.header}</span>
-              )}
+              {disruption.label}
+              {disruption.header ? ` · ${disruption.header}` : ""}
             </button>
           )}
 
@@ -442,22 +442,13 @@ const VehicleMarkerItem = memo(function VehicleMarkerItem({
             )
           )}
 
-          <div className="flex items-center justify-between text-xs text-slate-500 mt-2 pt-1.5 border-t border-slate-100">
-            <span>
-              {vehicle.isEstimated
-                ? "Orario teorico"
-                : vehicle.isSimulated || metro
-                ? "Metro M1 (simulata)"
-                : tram
-                ? "Rete tramviaria"
-                : "Autobus GTT"}
-            </span>
-            {vehicle.speed > 0 && (
-              <span className="font-bold text-[#0B5FFF]">{vehicle.speed} km/h</span>
-            )}
-          </div>
+          {vehicle.speed > 0 && (
+            <div className="text-[11px] font-bold text-[#0B5FFF] mt-1">
+              {vehicle.speed} km/h
+            </div>
+          )}
 
-          <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between gap-1.5">
+          <div className="mt-1.5 flex items-center justify-between gap-1.5">
             {onShareVehicle && (
               <button
                 onClick={(e) => {

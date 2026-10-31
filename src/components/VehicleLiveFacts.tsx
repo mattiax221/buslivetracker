@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Accessibility, Clock } from "lucide-react";
 
 type Tone = "late" | "early" | "ontime";
 
@@ -117,29 +116,27 @@ export default function VehicleLiveFacts({
   }
 
   return (
-    <div className="mt-1.5 space-y-1">
+    <div className="mt-1 flex flex-wrap gap-1">
       {delay && (
-        <div className={`text-[11px] font-bold px-2 py-1 rounded-lg border ${LIGHT[delay.tone]}`}>
-          {delay.label}
-        </div>
+        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md border ${LIGHT[delay.tone]}`}>
+          {delay.short}
+        </span>
       )}
       {age && (
-        <div
-          className={`text-[11px] font-medium px-2 py-1 rounded-lg border flex items-center gap-1 ${
+        <span
+          className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md border ${
             age.stale
               ? "bg-amber-50 text-amber-800 border-amber-200"
               : "bg-slate-50 text-slate-600 border-slate-200"
           }`}
         >
-          <Clock className="w-3.5 h-3.5 shrink-0" />
-          {age.label}
-        </div>
+          {age.short}
+        </span>
       )}
       {chair && (
-        <div className="text-[11px] font-medium px-2 py-1 rounded-lg border bg-slate-50 text-slate-700 border-slate-200 flex items-center gap-1">
-          <Accessibility className="w-3.5 h-3.5 shrink-0" />
-          {chair}
-        </div>
+        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md border bg-slate-50 text-slate-700 border-slate-200">
+          {wheelchair === "yes" ? "Carrozzina" : "Non accessibile"}
+        </span>
       )}
     </div>
   );
