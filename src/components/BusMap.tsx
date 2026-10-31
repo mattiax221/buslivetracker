@@ -79,6 +79,7 @@ import {
   tickMotions,
   type VehicleMotionState,
 } from "../lib/vehicleMotion";
+import { lookupFleet } from "../lib/fleet";
 
 /* ── Types ── */
 interface Vehicle {
@@ -89,6 +90,7 @@ interface Vehicle {
   speed: number;
   line: string;
   tripId: string;
+  fleet?: string;
   headsign?: string;
   statusDescription?: string;
   nextStation?: string;
@@ -219,6 +221,24 @@ function getVehicleDirection(v: Vehicle, shapes: RouteShape[]): string | null {
   return bestDir;
 }
 
+function FleetLine({ fleet }: { fleet: string }) {
+  const info = lookupFleet(fleet);
+  if (!info) return null;
+  return (
+    <div className="mt-1.5 text-[11px] leading-snug">
+      <div className="font-bold text-slate-800">Matricola {info.fleet}</div>
+      {info.name ? (
+        <div className="text-slate-600">
+          {info.name}
+          {info.detail ? ` · ${info.detail}` : ""}
+        </div>
+      ) : (
+        <div className="text-slate-400">Serie non in archivio</div>
+      )}
+    </div>
+  );
+}
+
 /**
  * GPS dots use calibrated / glided coords from vehicleMotion.
  * Compact mode = CircleMarker (light) so hundreds of GPS buses don't OOM Android.
@@ -311,6 +331,10 @@ const VehicleMarkerItem = memo(function VehicleMarkerItem({
               <span className="text-slate-400">Direzione: </span>
               {vehicle.headsign}
             </div>
+          )}
+
+          {vehicle.fleet && !vehicle.isEstimated && !vehicle.isSimulated && !metro && (
+            <FleetLine fleet={vehicle.fleet} />
           )}
 
           {vehicle.isEstimated ? (

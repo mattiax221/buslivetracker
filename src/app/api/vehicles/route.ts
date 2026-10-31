@@ -13,6 +13,8 @@ export interface Vehicle {
   speed: number;
   line: string;
   tripId: string;
+  /** GTT fleet number from the live feed (matricola). */
+  fleet?: string;
   headsign?: string;
   statusDescription?: string;
   nextStation?: string;
@@ -63,6 +65,9 @@ export async function GET() {
           : 0,
         line: line || "?",
         tripId: vp.trip?.tripId ?? "",
+        fleet: (vp.vehicle?.label || vp.vehicle?.id || entity.id || "")
+          .replace(/[UES]$/i, "")
+          .trim(),
       });
     }
 

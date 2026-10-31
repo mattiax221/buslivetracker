@@ -13,6 +13,14 @@ export type RoadmapItem = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.16",
+    date: "2026-10-31",
+    title: "Matricola e modello del mezzo",
+    items: [
+      "Nel popup del mezzo: matricola GTT e serie (es. 6038 → Alstom Cityway)",
+    ],
+  },
+  {
     version: "0.3.15",
     date: "2026-10-30",
     title: "Night mode e push a app chiusa",
