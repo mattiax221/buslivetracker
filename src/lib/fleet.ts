@@ -107,6 +107,13 @@ const TRAM_8000: FleetPhoto = {
   license: "CC BY-SA 4.0",
   licenseUrl: CC_BY_SA_4,
 };
+/** User photo of GTT 9716, the articulated E-Way BRT on the new line 2. */
+const EWAY_BRT: FleetPhoto = {
+  src: "/fleet/gtt-9716.jpg",
+  author: "9716",
+  license: "GTT",
+  licenseUrl: "https://www.gtt.to.it/",
+};
 
 const SERIES: Series[] = [
   { from: 2801, to: 2857, name: "Tram serie 2800", detail: "1ª serie, motrice articolata", photo: TRAM_2800 },
@@ -146,7 +153,7 @@ const SERIES: Series[] = [
   { from: 9300, to: 9356, name: "Iveco Urbanway", detail: "18 m, metano" },
   { from: 9400, to: 9535, name: "Iveco E-Way", detail: "12 m, elettrico" },
   { from: 9600, to: 9661, name: "Iveco E-Way", detail: "18 m, elettrico" },
-  { from: 9700, to: 9727, name: "Iveco E-Way BRT", detail: "18 m, elettrico, linea di forza" },
+  { from: 9700, to: 9727, name: "Iveco E-Way BRT", detail: "18 m, elettrico, linea di forza", photo: EWAY_BRT },
 ];
 
 export function cleanFleetNumber(raw: string | undefined | null): string {

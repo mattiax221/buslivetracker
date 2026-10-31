@@ -13,6 +13,14 @@ export type RoadmapItem = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.19",
+    date: "2026-10-31",
+    title: "Foto dell’E-Way BRT 9716",
+    items: [
+      "La serie 9700–9727 mostra il 9716, l’autosnodato elettrico della linea 2",
+    ],
+  },
+  {
     version: "0.3.18",
     date: "2026-10-31",
     title: "Solo foto di mezzi GTT",
