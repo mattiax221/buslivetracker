@@ -13,6 +13,15 @@ export type RoadmapItem = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.17",
+    date: "2026-10-31",
+    title: "Foto E-Way e tram serie 8000",
+    items: [
+      "Matricola 8001–8070: tram Hitachi serie 8000, con foto di un mezzo GTT",
+      "Matricola 9400–9535: Iveco E-Way 12 m. La foto è del modello: non esiste ancora una foto libera di un E-Way GTT",
+    ],
+  },
+  {
     version: "0.3.16",
     date: "2026-10-31",
     title: "Matricola e modello del mezzo",

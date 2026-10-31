@@ -9,6 +9,8 @@ export type FleetPhoto = {
   author: string;
   license: string;
   licenseUrl: string;
+  /** Shown under the picture when it is the model, not a GTT vehicle. */
+  note?: string;
 };
 
 export type FleetInfo = {
@@ -83,6 +85,20 @@ const CITYMOOD: FleetPhoto = {
   license: "CC BY-SA 4.0",
   licenseUrl: CC_BY_SA_4,
 };
+const TRAM_8000: FleetPhoto = {
+  src: commons("GTT 8015 Corso Vittorio Emanuele Stazione Porta Nuova 20250412.jpg"),
+  author: "Moliva",
+  license: "CC BY-SA 4.0",
+  licenseUrl: CC_BY_SA_4,
+};
+/** No freely licensed photo of a GTT E-Way exists; this is the same 12 m model. */
+const EWAY: FleetPhoto = {
+  src: commons("Iveco E-Way SVT.jpg"),
+  author: "Berusetti",
+  license: "CC BY-SA 4.0",
+  licenseUrl: CC_BY_SA_4,
+  note: "Esempio del modello, livrea di un'altra città",
+};
 
 const SERIES: Series[] = [
   { from: 2801, to: 2857, name: "Tram serie 2800", detail: "1ª serie, motrice articolata" },
@@ -91,6 +107,7 @@ const SERIES: Series[] = [
   { from: 6000, to: 6005, name: "Alstom Cityway", detail: "Tram serie 6000, monodirezionale, piano ribassato", photo: CITYWAY },
   { from: 6006, to: 6054, name: "Alstom Cityway", detail: "Tram serie 6000, bidirezionale, piano ribassato", photo: CITYWAY },
   { from: 7000, to: 7039, name: "Tram serie 7000", detail: "Motrice AEG" },
+  { from: 8001, to: 8070, name: "Hitachi Rail", detail: "Tram serie 8000, 28 m, monodirezionale", photo: TRAM_8000 },
   { from: 85, to: 89, name: "MAN Lion's City", detail: "10 m, diesel Euro 4" },
   { from: 110, to: 115, name: "BMC Neocity", detail: "8,5 m, diesel Euro 6" },
   { from: 320, to: 365, name: "Iveco Crossway", detail: "12 m, extraurbano" },
@@ -119,7 +136,7 @@ const SERIES: Series[] = [
   { from: 9060, to: 9121, name: "BYD K9", detail: "12 m, elettrico", photo: BYD },
   { from: 9200, to: 9261, name: "Menarinibus Citymood", detail: "12 m, metano", photo: CITYMOOD },
   { from: 9300, to: 9356, name: "Iveco Urbanway", detail: "18 m, metano" },
-  { from: 9400, to: 9535, name: "Iveco E-Way", detail: "12 m, elettrico" },
+  { from: 9400, to: 9535, name: "Iveco E-Way", detail: "12 m, elettrico", photo: EWAY },
   { from: 9600, to: 9661, name: "Iveco E-Way", detail: "18 m, elettrico" },
   { from: 9700, to: 9727, name: "Iveco E-Way BRT", detail: "18 m, elettrico, linea di forza" },
 ];
