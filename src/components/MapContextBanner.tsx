@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { Share2, X } from "lucide-react";
 import { isMetro, lineColor } from "../lib/mapUtils";
 
@@ -8,6 +9,7 @@ interface MapContextBannerProps {
   headsign?: string;
   isEstimated?: boolean;
   notice?: string;
+  facts?: ReactNode;
   onShare: () => void;
   onFit: () => void;
   onClear: () => void;
@@ -18,13 +20,15 @@ export default function MapContextBanner({
   headsign,
   isEstimated,
   notice,
+  facts,
   onShare,
   onFit,
   onClear,
 }: MapContextBannerProps) {
   return (
     <div className="mx-3 mt-2 pointer-events-none">
-      <div className="bg-slate-900/95 backdrop-blur-md text-white px-3.5 py-2 rounded-2xl shadow-xl flex items-center justify-between gap-2.5 pointer-events-auto border border-white/10">
+      <div className="bg-slate-900/95 backdrop-blur-md text-white px-3.5 py-2 rounded-2xl shadow-xl pointer-events-auto border border-white/10">
+        <div className="flex items-center justify-between gap-2.5">
         <div className="flex items-center gap-2 min-w-0">
           <span
             className="w-2.5 h-2.5 rounded-full shrink-0"
@@ -73,6 +77,8 @@ export default function MapContextBanner({
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
+        </div>
+        {facts && <div className="mt-1.5">{facts}</div>}
       </div>
     </div>
   );

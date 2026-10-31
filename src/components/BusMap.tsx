@@ -87,6 +87,7 @@ import {
   type VehicleMotionState,
 } from "../lib/vehicleMotion";
 import { lookupFleet } from "../lib/fleet";
+import VehicleLiveFacts, { delayMark } from "./VehicleLiveFacts";
 
 /* ── Types ── */
 interface Vehicle {
@@ -103,6 +104,9 @@ interface Vehicle {
   nextStation?: string;
   isEstimated?: boolean;
   isSimulated?: boolean;
+  fixAt?: number;
+  delaySec?: number;
+  wheelchair?: "yes" | "no";
 }
 
 interface ApiResponse {
@@ -152,10 +156,12 @@ function getVehicleIcon(
   heading: number,
   isEstimated?: boolean,
   isStopped?: boolean,
-  disrupted?: boolean
+  disrupted?: boolean,
+  delaySec?: number
 ): L.DivIcon {
   const roundedRot = Math.round((heading || 0) / 12) * 12;
-  const key = `${line}_${roundedRot}_${isEstimated ? "est" : "real"}_${isStopped ? "stop" : "go"}_${disrupted ? "warn" : "ok"}`;
+  const late = delayMark(delaySec);
+  const key = `${line}_${roundedRot}_${isEstimated ? "est" : "real"}_${isStopped ? "stop" : "go"}_${disrupted ? "warn" : "ok"}_${late}`;
   let icon = vehicleIconCache.get(key);
   if (!icon) {
     const color = lineColor(line);
@@ -189,6 +195,7 @@ function getVehicleIcon(
             ${isEstimated ? `<span style="font-size:9px;opacity:0.95">⏱</span>` : ""}
             ${disrupted ? `<span style="font-size:10px;line-height:1">!</span>` : ""}
             <span>${line}</span>
+            ${late ? `<span style="font-size:9px;font-weight:800;opacity:0.95">${late}</span>` : ""}
           </div>
         </div>
       `,
@@ -290,16 +297,26 @@ const VehicleMarkerItem = memo(function VehicleMarkerItem({
   const tram = !metro && isTram(vehicle.line);
   const markerRef = useRef<L.Marker | null>(null);
   const color = lineColor(vehicle.line);
+  const liveGps = !metro && !vehicle.isEstimated && !vehicle.isSimulated;
   const icon = getVehicleIcon(
     vehicle.line,
     vehicle.heading,
     vehicle.isEstimated,
     vehicle.speed <= 1.8,
-    Boolean(disruption)
+    Boolean(disruption),
+    liveGps ? vehicle.delaySec : undefined
   );
 
   useEffect(() => {
-    if (detailOpen) markerRef.current?.openPopup();
+    if (!detailOpen) return;
+    // The marker is recreated when the map flies to it, so open again after that.
+    const open = () => markerRef.current?.openPopup();
+    const frame = requestAnimationFrame(open);
+    const later = window.setTimeout(open, 500);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.clearTimeout(later);
+    };
   }, [detailOpen]);
 
   // Light dots when zoomed out — same GPS fleet, fraction of the DOM cost
@@ -386,6 +403,15 @@ const VehicleMarkerItem = memo(function VehicleMarkerItem({
             <FleetLine fleet={vehicle.fleet} />
           )}
 
+          {liveGps && (
+            <VehicleLiveFacts
+              delaySec={vehicle.delaySec}
+              fixAt={vehicle.fixAt}
+              wheelchair={vehicle.wheelchair}
+              variant="light"
+            />
+          )}
+
           {vehicle.isEstimated ? (
             <div className="text-[11px] font-medium text-amber-800 bg-amber-50 p-2 rounded-xl mt-1.5 border border-amber-200">
               <div className="flex items-center gap-1 font-bold">
@@ -426,10 +452,8 @@ const VehicleMarkerItem = memo(function VehicleMarkerItem({
                 ? "Rete tramviaria"
                 : "Autobus GTT"}
             </span>
-            {vehicle.speed > 0 ? (
+            {vehicle.speed > 0 && (
               <span className="font-bold text-[#0B5FFF]">{vehicle.speed} km/h</span>
-            ) : (
-              <span className="text-amber-600 font-bold">In fermata</span>
             )}
           </div>
 
@@ -1439,8 +1463,7 @@ export default function BusMap() {
     const isM1 = isMetro(v.line);
     const lineLabel = isM1 ? "Metro M1 (VAL 208)" : `Linea ${v.line}`;
     const headsignText = v.headsign ? ` in direzione ${v.headsign}` : "";
-    const speedText =
-      v.speed > 0 ? `in marcia a ${v.speed} km/h` : "in sosta/fermata";
+    const speedText = v.speed > 0 ? `in marcia a ${v.speed} km/h` : "in servizio";
     const status = v.statusDescription ? ` (${v.statusDescription})` : "";
 
     setShareModalData({
@@ -1707,6 +1730,19 @@ export default function BusMap() {
                   activeLineDisruption
                     ? `${activeLineDisruption.label}${activeLineDisruption.header ? ` · ${activeLineDisruption.header}` : ""}`
                     : undefined
+                }
+                facts={
+                  activeVehicle &&
+                  !activeVehicle.isEstimated &&
+                  !activeVehicle.isSimulated &&
+                  !isMetro(activeVehicle.line) ? (
+                    <VehicleLiveFacts
+                      delaySec={activeVehicle.delaySec}
+                      fixAt={activeVehicle.fixAt}
+                      wheelchair={activeVehicle.wheelchair}
+                      variant="dark"
+                    />
+                  ) : undefined
                 }
                 onShare={() => {
                   if (activeVehicle) handleShareVehicle(activeVehicle);

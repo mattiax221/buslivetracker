@@ -13,6 +13,15 @@ export type RoadmapItem = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.23",
+    date: "2026-10-31",
+    title: "Ritardo, carrozzina e età del GPS",
+    items: [
+      "Cliccando un mezzo vedi se è in ritardo o in anticipo, se è accessibile in carrozzina e quanto è vecchia la posizione",
+      "Sul pallino, +3 o −2 indica i minuti di ritardo o anticipo",
+    ],
+  },
+  {
     version: "0.3.22",
     date: "2026-10-31",
     title: "Notifica a ogni aggiornamento",
