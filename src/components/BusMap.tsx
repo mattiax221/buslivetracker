@@ -46,7 +46,7 @@ import MapBottomDock from "./MapBottomDock";
 import SheetHost from "./SheetHost";
 import { ShareData } from "../lib/shareUtils";
 import {
-  disruptionSummary,
+  disruptionSlides,
   indexDisruptions,
   type AlertLike,
   type LineDisruption,
@@ -1177,8 +1177,8 @@ export default function BusMap() {
   ]);
 
   const disruptionIndex = useMemo(() => indexDisruptions(serviceAlerts), [serviceAlerts]);
-  const disruptionBanner = useMemo(
-    () => disruptionSummary(disruptionIndex.byLine, disruptionIndex.citywide),
+  const disruptionSlidesList = useMemo(
+    () => disruptionSlides(disruptionIndex.byLine, disruptionIndex.citywide),
     [disruptionIndex]
   );
   const activeLineDisruption = activeVehicleRoute
@@ -1674,10 +1674,9 @@ export default function BusMap() {
           isLive={isLive && !error}
           onOpenAlerts={() => openSheet("alerts")}
         />
-        {disruptionBanner && (
+        {disruptionSlidesList.length > 0 && (
           <DisruptionBanner
-            text={disruptionBanner.text}
-            tone={disruptionBanner.tone}
+            slides={disruptionSlidesList}
             onOpen={() => openSheet("alerts")}
           />
         )}

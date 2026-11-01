@@ -147,3 +147,99 @@ export function disruptionSummary(
   }
   return { text, tone };
 }
+
+export type DisruptionSlide = {
+  text: string;
+  tone: "red" | "amber";
+};
+
+const SLIDE_ORDER: DisruptionKind[] = ["strike", "suspended", "detour", "stop", "reduced"];
+
+function toneFor(kind: DisruptionKind): "red" | "amber" {
+  return kind === "strike" || kind === "suspended" ? "red" : "amber";
+}
+
+function namedLines(lines: string[]): string {
+  if (lines.length <= 3) return lines.join(", ");
+  return `${lines.slice(0, 3).join(", ")} e altre ${lines.length - 3}`;
+}
+
+function slideFor(kind: DisruptionKind, lines: string[]): DisruptionSlide | null {
+  if (lines.length === 0) return null;
+  const tone = toneFor(kind);
+  if (kind === "strike") {
+    return {
+      tone,
+      text:
+        lines.length === 1
+          ? `Sciopero sulla linea ${lines[0]}`
+          : `Sciopero sulle linee ${namedLines(lines)}`,
+    };
+  }
+  if (kind === "suspended") {
+    return {
+      tone,
+      text:
+        lines.length === 1
+          ? `Linea ${lines[0]} senza servizio`
+          : `${lines.length} linee senza servizio`,
+    };
+  }
+  if (kind === "detour") {
+    return {
+      tone,
+      text: lines.length === 1 ? `Linea ${lines[0]} deviata` : `${lines.length} linee deviate`,
+    };
+  }
+  if (kind === "stop") {
+    return {
+      tone,
+      text:
+        lines.length === 1
+          ? `Fermata cambiata sulla linea ${lines[0]}`
+          : `Fermate cambiate su ${lines.length} linee`,
+    };
+  }
+  return {
+    tone,
+    text: lines.length === 1 ? `Ritardi sulla linea ${lines[0]}` : `Ritardi su ${lines.length} linee`,
+  };
+}
+
+function citywideSlide(kind: DisruptionKind, items: LineDisruption[]): DisruptionSlide | null {
+  if (items.length === 0) return null;
+  const tone = toneFor(kind);
+  if (items.length === 1) {
+    const short =
+      items[0].header.length > 72 ? `${items[0].header.slice(0, 72).trim()}…` : items[0].header;
+    return { tone, text: short ? `${items[0].label} · ${short}` : items[0].label };
+  }
+  if (kind === "strike") return { tone, text: `Sciopero su ${items.length} avvisi` };
+  if (kind === "suspended") return { tone, text: `${items.length} avvisi di servizio sospeso` };
+  if (kind === "detour") return { tone, text: `${items.length} deviazioni in città` };
+  if (kind === "stop") return { tone, text: `${items.length} fermate cambiate` };
+  return { tone, text: `Ritardi su ${items.length} avvisi` };
+}
+
+/** Most serious notices first. One slide per kind, shown one at a time. */
+export function disruptionSlides(
+  byLine: Map<string, LineDisruption>,
+  citywide: LineDisruption[] = []
+): DisruptionSlide[] {
+  const items = [...byLine.values()];
+  const slides: DisruptionSlide[] = [];
+  for (const kind of SLIDE_ORDER) {
+    const lines = items.filter((item) => item.kind === kind).map((item) => item.line);
+    const fromLines = slideFor(kind, lines);
+    if (fromLines) {
+      slides.push(fromLines);
+      continue;
+    }
+    const fromCity = citywideSlide(
+      kind,
+      citywide.filter((item) => item.kind === kind)
+    );
+    if (fromCity) slides.push(fromCity);
+  }
+  return slides;
+}

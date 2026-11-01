@@ -271,11 +271,28 @@ html[data-theme="dark"] .gtt-sheet .bg-white {
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1) !important;
 }
 
+@keyframes disruption-drop {
+  0% {
+    transform: translateY(-130%);
+  }
+  70% {
+    transform: translateY(6%);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+.disruption-drop {
+  animation: disruption-drop 0.42s cubic-bezier(0.22, 0.9, 0.3, 1);
+}
+
 /* Prefer reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .chrome-enter,
   .dock-enter,
-  .live-dot--on {
+  .live-dot--on,
+  .disruption-drop {
     animation: none !important;
   }
 }
