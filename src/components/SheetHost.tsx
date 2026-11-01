@@ -49,9 +49,7 @@ export default function SheetHost({ active, onClose, children }: SheetHostProps)
 
   return (
     <div className="fixed inset-0 z-[1100] flex flex-col justify-end overscroll-none">
-      <button
-        type="button"
-        aria-label="Chiudi"
+      <div
         className="absolute inset-0 bg-black/40"
         onClick={onClose}
       />

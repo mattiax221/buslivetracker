@@ -78,7 +78,7 @@ export default function AlertsBottomSheet({
         </div>
 
         {/* Header */}
-        <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+        <div className="relative z-20 shrink-0 px-5 py-3 border-b border-gray-100 flex items-center justify-between bg-[var(--sheet-bg)]">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center">
               <AlertTriangle className="w-5 h-5" />
@@ -94,7 +94,8 @@ export default function AlertsBottomSheet({
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-full hover:bg-gray-100 text-gray-500 active:bg-gray-200"
+            aria-label="Chiudi"
+            className="relative z-20 p-2 rounded-full hover:bg-gray-100 text-gray-500 active:bg-gray-200 shrink-0"
           >
             <X className="w-5 h-5" />
           </button>
@@ -132,7 +133,7 @@ export default function AlertsBottomSheet({
                   : "bg-white text-gray-600 border border-gray-200"
               }`}
             >
-              Tutti ({alerts.length})
+              {loading ? "Tutti…" : `Tutti (${alerts.length})`}
             </button>
             <button
               onClick={() => setFilterType("DETOUR")}
@@ -160,7 +161,7 @@ export default function AlertsBottomSheet({
         </div>
 
         {/* List of alerts */}
-        <div className="overflow-y-auto px-4 py-3 space-y-3 flex-1 overscroll-contain">
+        <div className="overflow-y-auto px-4 py-3 space-y-3 flex-1 min-h-0 overscroll-contain">
           {loading ? (
             <div className="py-12 flex flex-col items-center justify-center text-gray-400 gap-2">
               <div className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />

@@ -13,6 +13,16 @@ export type RoadmapItem = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.24",
+    date: "2026-11-01",
+    title: "Metro, percorsi e velocità più onesti",
+    items: [
+      "Gli ascensori M1 sono una scheda di impianto, non lo stato di oggi",
+      "Il pallino della metro è tratteggiato: è un orario, non un GPS",
+      "I percorsi a piedi usano il nome del posto, e il mezzo mostra i km/h ricavati dallo spostamento",
+    ],
+  },
+  {
     version: "0.3.23",
     date: "2026-10-31",
     title: "Ritardo, carrozzina e età del GPS",

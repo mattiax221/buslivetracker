@@ -4,16 +4,12 @@ import { useState } from "react";
 import {
   X,
   Search,
-  CheckCircle2,
   AlertTriangle,
   Info,
-  Layers,
   ArrowUpRight,
-  ShieldCheck,
   Eye,
-  Radio,
 } from "lucide-react";
-import { METRO_M1_ACCESSIBILITY, StationAccessibility } from "../lib/metroAccessibility";
+import { METRO_M1_ACCESSIBILITY } from "../lib/metroAccessibility";
 
 interface MetroAccessibilitySheetProps {
   isOpen: boolean;
@@ -51,13 +47,6 @@ export default function MetroAccessibilitySheet({
     return true;
   });
 
-  const totalOperational = METRO_M1_ACCESSIBILITY.filter(
-    (s) =>
-      s.elevators.streetToAtrium === "OPERATIONAL" &&
-      s.elevators.atriumToFermi === "OPERATIONAL" &&
-      s.elevators.atriumToBengasi === "OPERATIONAL"
-  ).length;
-
   const panel = (
       <div
         className="w-full max-w-lg mx-auto gtt-sheet rounded-t-3xl shadow-2xl border border-gray-100 flex flex-col max-h-[min(88dvh,100%)] overflow-hidden animate-in slide-in-from-bottom duration-300"
@@ -92,15 +81,11 @@ export default function MetroAccessibilitySheet({
         </div>
 
         {/* Global Summary Badge */}
-        <div className="p-3 bg-slate-900 text-white flex items-center justify-between text-xs px-4">
-          <div className="flex items-center gap-2">
-            <ShieldCheck className="w-4 h-4 text-emerald-400" />
-            <span className="font-bold">
-              {totalOperational} su 23 Stazioni con tutti gli impianti al 100%
-            </span>
-          </div>
-          <span className="text-[10px] font-mono bg-white/20 px-2 py-0.5 rounded-md">
-            PMR 100%
+        <div className="p-3 bg-slate-900 text-white flex items-center gap-2 text-xs px-4">
+          <Info className="w-4 h-4 text-slate-300 shrink-0" />
+          <span className="font-medium leading-snug">
+            Scheda di impianto delle {METRO_M1_ACCESSIBILITY.length} stazioni.
+            Non dice se l’ascensore è guasto oggi: GTT non pubblica quello stato.
           </span>
         </div>
 
@@ -145,7 +130,7 @@ export default function MetroAccessibilitySheet({
               }`}
             >
               <AlertTriangle className="w-3 h-3" />
-              <span>Avvisi / Manutenzione</span>
+              <span>Con una nota</span>
             </button>
           </div>
         </div>
@@ -188,57 +173,29 @@ export default function MetroAccessibilitySheet({
                 <div className="grid grid-cols-2 gap-1.5 text-[11px]">
                   {/* Street - Atrium Elevator */}
                   <div className="p-2 rounded-xl bg-gray-50 border border-gray-100 flex items-center gap-2">
-                    <span
-                      className={`w-2 h-2 rounded-full shrink-0 ${
-                        station.elevators.streetToAtrium === "OPERATIONAL"
-                          ? "bg-emerald-500"
-                          : "bg-amber-500"
-                      }`}
-                    />
+                    <span className="w-2 h-2 rounded-full shrink-0 bg-slate-400" />
                     <div className="truncate">
                       <div className="text-gray-500 text-[10px]">Ascensore Strada ↔ Atrio</div>
-                      <div className="font-bold text-gray-800">
-                        {station.elevators.streetToAtrium === "OPERATIONAL"
-                          ? "In Servizio"
-                          : "Manutenzione"}
-                      </div>
+                      <div className="font-bold text-gray-800">Previsto in stazione</div>
                     </div>
                   </div>
 
                   {/* Atrium - Platforms Elevators */}
                   <div className="p-2 rounded-xl bg-gray-50 border border-gray-100 flex items-center gap-2">
-                    <span
-                      className={`w-2 h-2 rounded-full shrink-0 ${
-                        station.elevators.atriumToFermi === "OPERATIONAL" &&
-                        station.elevators.atriumToBengasi === "OPERATIONAL"
-                          ? "bg-emerald-500"
-                          : "bg-amber-500"
-                      }`}
-                    />
+                    <span className="w-2 h-2 rounded-full shrink-0 bg-slate-400" />
                     <div className="truncate">
                       <div className="text-gray-500 text-[10px]">Ascensori Banchine</div>
-                      <div className="font-bold text-gray-800">
-                        {station.elevators.atriumToFermi === "OPERATIONAL" &&
-                        station.elevators.atriumToBengasi === "OPERATIONAL"
-                          ? "Entrambi OK"
-                          : "1 in Revisione"}
-                      </div>
+                      <div className="font-bold text-gray-800">Verso le banchine</div>
                     </div>
                   </div>
 
                   {/* Escalators */}
                   <div className="p-2 rounded-xl bg-gray-50 border border-gray-100 flex items-center gap-2">
-                    <span
-                      className={`w-2 h-2 rounded-full shrink-0 ${
-                        station.escalators.status === "OPERATIONAL"
-                          ? "bg-emerald-500"
-                          : "bg-amber-500"
-                      }`}
-                    />
+                    <span className="w-2 h-2 rounded-full shrink-0 bg-slate-400" />
                     <div className="truncate">
                       <div className="text-gray-500 text-[10px]">Scale Mobili</div>
                       <div className="font-bold text-gray-800">
-                        {station.escalators.operational}/{station.escalators.total} Operative
+                        {station.escalators.total} in stazione
                       </div>
                     </div>
                   </div>
@@ -248,7 +205,7 @@ export default function MetroAccessibilitySheet({
                     <Eye className="w-3.5 h-3.5 text-blue-600 shrink-0" />
                     <div className="truncate">
                       <div className="text-gray-500 text-[10px]">Percorsi Tattili</div>
-                      <div className="font-bold text-gray-800">Loges + SOS Attivi</div>
+                      <div className="font-bold text-gray-800">Loges e citofono</div>
                     </div>
                   </div>
                 </div>

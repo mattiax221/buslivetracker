@@ -1,4 +1,4 @@
-// Metro M1 Accessibility Data & Real-Time Status for all 23 Stations
+// Metro M1 station equipment sheet. Not a live elevator status feed.
 // Compliant with PMR (Persone a Mobilità Ridotta), stroller, and tactile guidance standards
 
 export interface StationAccessibility {
@@ -35,7 +35,7 @@ export const METRO_M1_ACCESSIBILITY: StationAccessibility[] = [
     intercomAssistance: true,
     levelBoarding: true,
     note: "Parcheggio di interscambio e ascensore diretto a raso",
-    updatedAt: new Date().toISOString(),
+    updatedAt: "scheda",
   },
   {
     code: "METRO_PARADISO",
@@ -47,7 +47,7 @@ export const METRO_M1_ACCESSIBILITY: StationAccessibility[] = [
     tactilePaving: true,
     intercomAssistance: true,
     levelBoarding: true,
-    updatedAt: new Date().toISOString(),
+    updatedAt: "scheda",
   },
   {
     code: "METRO_MARCHE",
@@ -59,7 +59,7 @@ export const METRO_M1_ACCESSIBILITY: StationAccessibility[] = [
     tactilePaving: true,
     intercomAssistance: true,
     levelBoarding: true,
-    updatedAt: new Date().toISOString(),
+    updatedAt: "scheda",
   },
   {
     code: "METRO_MASSAUA",
@@ -71,7 +71,7 @@ export const METRO_M1_ACCESSIBILITY: StationAccessibility[] = [
     tactilePaving: true,
     intercomAssistance: true,
     levelBoarding: true,
-    updatedAt: new Date().toISOString(),
+    updatedAt: "scheda",
   },
   {
     code: "METRO_POZZO_STRADA",
@@ -83,7 +83,7 @@ export const METRO_M1_ACCESSIBILITY: StationAccessibility[] = [
     tactilePaving: true,
     intercomAssistance: true,
     levelBoarding: true,
-    updatedAt: new Date().toISOString(),
+    updatedAt: "scheda",
   },
   {
     code: "METRO_MONTE_GRAPPA",
@@ -95,7 +95,7 @@ export const METRO_M1_ACCESSIBILITY: StationAccessibility[] = [
     tactilePaving: true,
     intercomAssistance: true,
     levelBoarding: true,
-    updatedAt: new Date().toISOString(),
+    updatedAt: "scheda",
   },
   {
     code: "METRO_RIVOLI",
@@ -107,7 +107,7 @@ export const METRO_M1_ACCESSIBILITY: StationAccessibility[] = [
     tactilePaving: true,
     intercomAssistance: true,
     levelBoarding: true,
-    updatedAt: new Date().toISOString(),
+    updatedAt: "scheda",
   },
   {
     code: "METRO_RACCONIGI",
@@ -119,7 +119,7 @@ export const METRO_M1_ACCESSIBILITY: StationAccessibility[] = [
     tactilePaving: true,
     intercomAssistance: true,
     levelBoarding: true,
-    updatedAt: new Date().toISOString(),
+    updatedAt: "scheda",
   },
   {
     code: "METRO_BERNINI",
@@ -132,7 +132,7 @@ export const METRO_M1_ACCESSIBILITY: StationAccessibility[] = [
     intercomAssistance: true,
     levelBoarding: true,
     note: "Scala mobile lato Ovest in revisione periodica",
-    updatedAt: new Date().toISOString(),
+    updatedAt: "scheda",
   },
   {
     code: "METRO_PRINCIPI_D_ACAJA",
@@ -144,7 +144,7 @@ export const METRO_M1_ACCESSIBILITY: StationAccessibility[] = [
     tactilePaving: true,
     intercomAssistance: true,
     levelBoarding: true,
-    updatedAt: new Date().toISOString(),
+    updatedAt: "scheda",
   },
   {
     code: "METRO_XVIII_DICEMBRE",
@@ -156,7 +156,7 @@ export const METRO_M1_ACCESSIBILITY: StationAccessibility[] = [
     tactilePaving: true,
     intercomAssistance: true,
     levelBoarding: true,
-    updatedAt: new Date().toISOString(),
+    updatedAt: "scheda",
   },
   {
     code: "METRO_PORTA_SUSA",
@@ -169,7 +169,7 @@ export const METRO_M1_ACCESSIBILITY: StationAccessibility[] = [
     intercomAssistance: true,
     levelBoarding: true,
     note: "Interscambio diretto con Stazione Alta Velocità FS",
-    updatedAt: new Date().toISOString(),
+    updatedAt: "scheda",
   },
   {
     code: "METRO_VINZAGLIO",
@@ -181,7 +181,7 @@ export const METRO_M1_ACCESSIBILITY: StationAccessibility[] = [
     tactilePaving: true,
     intercomAssistance: true,
     levelBoarding: true,
-    updatedAt: new Date().toISOString(),
+    updatedAt: "scheda",
   },
   {
     code: "METRO_RE_UMBERTO",
@@ -193,7 +193,7 @@ export const METRO_M1_ACCESSIBILITY: StationAccessibility[] = [
     tactilePaving: true,
     intercomAssistance: true,
     levelBoarding: true,
-    updatedAt: new Date().toISOString(),
+    updatedAt: "scheda",
   },
   {
     code: "METRO_PORTA_NUOVA",
@@ -206,7 +206,7 @@ export const METRO_M1_ACCESSIBILITY: StationAccessibility[] = [
     intercomAssistance: true,
     levelBoarding: true,
     note: "Interscambio diretto sotterraneo con Stazione Ferroviaria",
-    updatedAt: new Date().toISOString(),
+    updatedAt: "scheda",
   },
   {
     code: "METRO_MARCONI",
@@ -218,7 +218,7 @@ export const METRO_M1_ACCESSIBILITY: StationAccessibility[] = [
     tactilePaving: true,
     intercomAssistance: true,
     levelBoarding: true,
-    updatedAt: new Date().toISOString(),
+    updatedAt: "scheda",
   },
   {
     code: "METRO_NIZZA",
@@ -230,7 +230,7 @@ export const METRO_M1_ACCESSIBILITY: StationAccessibility[] = [
     tactilePaving: true,
     intercomAssistance: true,
     levelBoarding: true,
-    updatedAt: new Date().toISOString(),
+    updatedAt: "scheda",
   },
   {
     code: "METRO_DANTE",
@@ -242,7 +242,7 @@ export const METRO_M1_ACCESSIBILITY: StationAccessibility[] = [
     tactilePaving: true,
     intercomAssistance: true,
     levelBoarding: true,
-    updatedAt: new Date().toISOString(),
+    updatedAt: "scheda",
   },
   {
     code: "METRO_CARDUCCI_MOLINETTE",
@@ -255,7 +255,7 @@ export const METRO_M1_ACCESSIBILITY: StationAccessibility[] = [
     intercomAssistance: true,
     levelBoarding: true,
     note: "Percorso protetto prioritario per presidio ospedaliero Molinette",
-    updatedAt: new Date().toISOString(),
+    updatedAt: "scheda",
   },
   {
     code: "METRO_SPEZIA",
@@ -267,7 +267,7 @@ export const METRO_M1_ACCESSIBILITY: StationAccessibility[] = [
     tactilePaving: true,
     intercomAssistance: true,
     levelBoarding: true,
-    updatedAt: new Date().toISOString(),
+    updatedAt: "scheda",
   },
   {
     code: "METRO_LINGOTTO",
@@ -280,7 +280,7 @@ export const METRO_M1_ACCESSIBILITY: StationAccessibility[] = [
     intercomAssistance: true,
     levelBoarding: true,
     note: "Collegamento diretto con Centro Commerciale Lingotto e Fiere",
-    updatedAt: new Date().toISOString(),
+    updatedAt: "scheda",
   },
   {
     code: "METRO_ITALIA_61",
@@ -293,7 +293,7 @@ export const METRO_M1_ACCESSIBILITY: StationAccessibility[] = [
     intercomAssistance: true,
     levelBoarding: true,
     note: "Stazione di recente apertura con impianti ad alta efficienza",
-    updatedAt: new Date().toISOString(),
+    updatedAt: "scheda",
   },
   {
     code: "METRO_BENGASI",
@@ -306,7 +306,7 @@ export const METRO_M1_ACCESSIBILITY: StationAccessibility[] = [
     intercomAssistance: true,
     levelBoarding: true,
     note: "Parcheggio interrato di interscambio e ascensori multipli",
-    updatedAt: new Date().toISOString(),
+    updatedAt: "scheda",
   },
 ];
 

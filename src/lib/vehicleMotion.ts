@@ -82,6 +82,23 @@ export function classifyMotion(
   return "moving";
 }
 
+/** km/h from how far the dot moved since the previous GPS fix. 0 when stopped or the jump is nonsense. */
+export function speedFromMotion(state: VehicleMotionState): number {
+  if (state.mode !== "moving") return 0;
+  const dist = getDistanceMeters(
+    state.from.lat,
+    state.from.lon,
+    state.to.lat,
+    state.to.lon
+  );
+  if (dist < MIN_MOVE_METERS || dist > JUMP_GUARD_METERS) return 0;
+  const hours = state.durationMs / 3_600_000;
+  if (hours <= 0) return 0;
+  const kmh = dist / 1000 / hours;
+  if (!Number.isFinite(kmh) || kmh < MOVING_SPEED_KMH || kmh > 80) return 0;
+  return Math.round(kmh);
+}
+
 export function sampleAt(
   state: VehicleMotionState,
   now: number

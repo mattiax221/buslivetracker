@@ -83,6 +83,7 @@ import SmartAlertsRunner from "./SmartAlertsRunner";
 import {
   applyPollUpdate,
   sampleAt,
+  speedFromMotion,
   tickMotions,
   type VehicleMotionState,
 } from "../lib/vehicleMotion";
@@ -104,6 +105,8 @@ interface Vehicle {
   nextStation?: string;
   isEstimated?: boolean;
   isSimulated?: boolean;
+  /** True when km/h comes from the GPS shift, because GTT sends no speed. */
+  speedInferred?: boolean;
   fixAt?: number;
   delaySec?: number;
   wheelchair?: "yes" | "no";
@@ -300,11 +303,12 @@ const VehicleMarkerItem = memo(function VehicleMarkerItem({
   const markerRef = useRef<L.Marker | null>(null);
   const color = lineColor(vehicle.line);
   const liveGps = !metro && !vehicle.isEstimated && !vehicle.isSimulated;
+  const timetableDot = Boolean(vehicle.isEstimated || vehicle.isSimulated || metro);
   const icon = getVehicleIcon(
     vehicle.line,
     vehicle.heading,
-    vehicle.isEstimated,
-    vehicle.speed <= 1.8,
+    timetableDot,
+    !timetableDot && vehicle.speed <= 1.8,
     Boolean(disruption),
     liveGps ? vehicle.delaySec : undefined
   );
@@ -328,10 +332,11 @@ const VehicleMarkerItem = memo(function VehicleMarkerItem({
         center={[vehicle.lat, vehicle.lon]}
         radius={vehicle.isEstimated ? 5 : 6}
         pathOptions={{
-          color: disruption ? "#d97706" : "#fff",
+          color: disruption ? "#d97706" : metro || vehicle.isSimulated ? "#fbbf24" : "#fff",
           weight: disruption ? 2 : 1,
           fillColor: color,
-          fillOpacity: vehicle.isEstimated ? 0.55 : 0.92,
+          fillOpacity: vehicle.isEstimated || vehicle.isSimulated || metro ? 0.45 : 0.92,
+          dashArray: vehicle.isEstimated || vehicle.isSimulated || metro ? "2 2" : undefined,
         }}
         eventHandlers={{ click: () => onSelectVehicle?.(vehicle) }}
       />
@@ -442,9 +447,9 @@ const VehicleMarkerItem = memo(function VehicleMarkerItem({
             )
           )}
 
-          {vehicle.speed > 0 && (
+            {vehicle.speed > 0 && (
             <div className="text-[11px] font-bold text-[#0B5FFF] mt-1">
-              {vehicle.speed} km/h
+              {vehicle.speedInferred ? `~${vehicle.speed} km/h` : `${vehicle.speed} km/h`}
             </div>
           )}
 
@@ -918,7 +923,16 @@ export default function BusMap() {
         const st = motions.get(v.id);
         if (!st) return v;
         const s = sampleAt(st, now);
-        return { ...v, lat: s.lat, lon: s.lon, heading: s.heading };
+        const inferred = v.speed > 0 ? 0 : speedFromMotion(st);
+        const speed = v.speed > 0 ? v.speed : inferred;
+        return {
+          ...v,
+          lat: s.lat,
+          lon: s.lon,
+          heading: s.heading,
+          speed,
+          speedInferred: v.speed <= 0 && speed > 0,
+        };
       });
     },
     []

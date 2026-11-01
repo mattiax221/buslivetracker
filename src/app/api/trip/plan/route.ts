@@ -32,6 +32,12 @@ function mapLeg(raw: Record<string, unknown>): TripLeg {
   };
 }
 
+function placeName(raw: string, fallback: string): string {
+  const name = raw.trim();
+  if (!name || /^(origin|destination|start|end)$/i.test(name)) return fallback;
+  return name;
+}
+
 function mapItinerary(raw: Record<string, unknown>): TripItinerary {
   const legsRaw = Array.isArray(raw.legs) ? raw.legs : [];
   return {
@@ -113,8 +119,19 @@ export async function GET(req: NextRequest) {
     if (data.error?.msg) {
       return NextResponse.json({ error: data.error.msg }, { status: 422 });
     }
+    const fromLabel = (sp.get("fromName") || "Partenza").trim().slice(0, 80) || "Partenza";
+    const toLabel = (sp.get("toName") || "Arrivo").trim().slice(0, 80) || "Arrivo";
     const list = data.plan?.itineraries || [];
-    const itineraries = list.map(mapItinerary).sort(
+    const itineraries = list.map((raw) => {
+      const it = mapItinerary(raw);
+      const last = it.legs.length - 1;
+      it.legs = it.legs.map((leg, i) => ({
+        ...leg,
+        fromName: placeName(leg.fromName, i === 0 ? fromLabel : "Partenza"),
+        toName: placeName(leg.toName, i === last ? toLabel : "Arrivo"),
+      }));
+      return it;
+    }).sort(
       (a, b) => a.durationSec - b.durationSec || a.startTime - b.startTime
     );
     return NextResponse.json({
