@@ -1,26 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
-import { kvGet, kvListRange, kvSet } from "../../../../lib/kv";
+import { kvGet, kvSet } from "../../../../lib/kv";
 import {
+  forgetPushEndpoint,
+  isExpiredPushError,
   isPushConfigured,
   sendPushToSubscription,
-  type PushSubJSON,
 } from "../../../../lib/push";
 import { fetchStopArrivals } from "../../../../lib/stopArrivals";
 import { announceLatestChangelog } from "../../../../lib/changelogPush";
 import { stopPath } from "../../../../lib/mapLinks";
+import {
+  alertPrefId,
+  listEnabledAlertPrefs,
+  removeAlertPref,
+} from "../../../../lib/alertPrefs";
 
-type PrefRow = {
-  endpoint: string;
-  keys: { p256dh: string; auth: string };
-  enabled: boolean;
-  lines: string[];
-  stops: { code: string; name: string }[];
-};
-
-const PREFS_LIST = "gtt:alert:prefs";
 const COOLDOWN_MS = 12 * 60 * 1000;
-/** Wide enough that a 5-minute cron actually catches a bus. */
-const SOON_MIN = 12;
+/** Same window as the in-app check. */
+const SOON_MIN = 4;
 
 async function nextArrivalMinutes(stopCode: string): Promise<{
   line: string;
@@ -48,39 +45,30 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false, reason: "no-vapid" });
   }
 
-  const changelog = await announceLatestChangelog();
+  const prefs = await listEnabledAlertPrefs();
+  if (!prefs) {
+    return NextResponse.json({ ok: true, skipped: "migrate" });
+  }
 
-  const rows = await kvListRange(PREFS_LIST, 0, 199);
-  const seen = new Set<string>();
+  const changelog = await announceLatestChangelog(prefs);
+
   let sent = 0;
-  let checked = 0;
+  let removed = 0;
+  const checked = prefs.length;
 
-  for (const raw of rows) {
-    let pref: PrefRow;
-    try {
-      pref = JSON.parse(raw) as PrefRow;
-    } catch {
-      continue;
-    }
-    if (!pref.enabled || !pref.endpoint || seen.has(pref.endpoint)) continue;
-    seen.add(pref.endpoint);
-    checked++;
-
+  for (const pref of prefs) {
     const stops = (pref.stops || []).slice(0, 3);
+    const id = alertPrefId(pref.endpoint);
     for (const stop of stops) {
-      const cdKey = `gtt:alert:cd:${pref.endpoint.slice(-24)}:${stop.code}`;
+      const cdKey = `gtt:alert:cd:${id}:${stop.code}`;
       const last = Number((await kvGet(cdKey)) || "0");
       if (Date.now() - last < COOLDOWN_MS) continue;
 
       const hit = await nextArrivalMinutes(stop.code);
       if (!hit) continue;
 
-      const sub: PushSubJSON = {
-        endpoint: pref.endpoint,
-        keys: pref.keys,
-      };
       try {
-        await sendPushToSubscription(sub, {
+        await sendPushToSubscription(pref, {
           title: `Fermata ${stop.name}`,
           body:
             hit.minutes <= 0
@@ -91,10 +79,22 @@ export async function GET(req: NextRequest) {
         await kvSet(cdKey, String(Date.now()));
         sent++;
       } catch (err) {
+        if (isExpiredPushError(err)) {
+          await forgetPushEndpoint(pref.endpoint);
+          await removeAlertPref(pref.endpoint);
+          removed++;
+          break;
+        }
         console.warn("smart-alert push failed", err);
       }
     }
   }
 
-  return NextResponse.json({ ok: true, checked, sent, changelog });
+  return NextResponse.json({
+    ok: true,
+    checked,
+    sent,
+    removed,
+    changelog,
+  });
 }

@@ -7,6 +7,7 @@ type MemoryStore = Map<string, string>;
 
 const memory: MemoryStore = new Map();
 const memoryLists: Map<string, string[]> = new Map();
+const memorySets: Map<string, Set<string>> = new Map();
 
 function hasKvEnv(): boolean {
   return !!(
@@ -51,6 +52,40 @@ export async function kvGet(key: string): Promise<string | null> {
   }
   const result = await redisFetch<string | null>(["GET", key]);
   return result ?? null;
+}
+
+export async function kvDel(key: string): Promise<void> {
+  if (!hasKvEnv()) {
+    memory.delete(key);
+    return;
+  }
+  await redisFetch(["DEL", key]);
+}
+
+export async function kvSetAdd(key: string, member: string): Promise<void> {
+  if (!hasKvEnv()) {
+    const set = memorySets.get(key) ?? new Set<string>();
+    set.add(member);
+    memorySets.set(key, set);
+    return;
+  }
+  await redisFetch(["SADD", key, member]);
+}
+
+export async function kvSetRemove(key: string, member: string): Promise<void> {
+  if (!hasKvEnv()) {
+    memorySets.get(key)?.delete(member);
+    return;
+  }
+  await redisFetch(["SREM", key, member]);
+}
+
+export async function kvSetMembers(key: string): Promise<string[]> {
+  if (!hasKvEnv()) {
+    return Array.from(memorySets.get(key) ?? []);
+  }
+  const result = await redisFetch<string[]>(["SMEMBERS", key]);
+  return result ?? [];
 }
 
 export async function kvSet(key: string, value: string): Promise<void> {

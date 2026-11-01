@@ -24,6 +24,15 @@ export default function SmartAlertsRunner({
 }) {
   const vehiclesRef = useRef(vehicles);
   vehiclesRef.current = vehicles;
+  const coordsRef = useRef(userCoords);
+  coordsRef.current = userCoords;
+  const linesRef = useRef(savedLines);
+  linesRef.current = savedLines;
+  const stopsRef = useRef(savedStops);
+  stopsRef.current = savedStops;
+
+  const linesKey = savedLines.join("\n");
+  const stopsKey = savedStops.map((s) => `${s.code}:${s.name}`).join("\n");
 
   // GPS→fermata watch: run on every vehicle list change (already polled)
   useEffect(() => {
@@ -49,9 +58,9 @@ export default function SmartAlertsRunner({
       if (document.visibilityState !== "visible") return;
       if (!isSmartAlertsEnabled()) return;
       await runSmartAlertCheck({
-        lines: savedLines,
-        stops: savedStops,
-        userCoords,
+        lines: linesRef.current,
+        stops: stopsRef.current,
+        userCoords: coordsRef.current,
         vehicles: vehiclesRef.current,
       });
     };
@@ -60,8 +69,8 @@ export default function SmartAlertsRunner({
       if (!isSmartAlertsEnabled()) return;
       void syncSmartAlertPrefs({
         enabled: true,
-        lines: savedLines,
-        stops: savedStops,
+        lines: linesRef.current,
+        stops: stopsRef.current,
       });
     };
 
@@ -85,7 +94,7 @@ export default function SmartAlertsRunner({
       window.clearInterval(id);
       document.removeEventListener("visibilitychange", onVis);
     };
-  }, [savedLines, savedStops, userCoords]);
+  }, [linesKey, stopsKey]);
 
   return null;
 }

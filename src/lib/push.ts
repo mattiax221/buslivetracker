@@ -1,5 +1,5 @@
 import webpush from "web-push";
-import { kvGet, kvListPush, kvListRange, kvListRemove, kvSet } from "./kv";
+import { kvDel, kvGet, kvListPush, kvListRange, kvListRemove, kvSet } from "./kv";
 
 const SUBS_LIST = "gtt:push:subs";
 const SUB_INDEX_PREFIX = "gtt:push:by:";
@@ -93,9 +93,23 @@ export async function listSubscriptions(): Promise<
   return out;
 }
 
-function isExpiredSubscription(err: unknown): boolean {
+export function isExpiredPushError(err: unknown): boolean {
   const status = (err as { statusCode?: number })?.statusCode;
   return status === 404 || status === 410;
+}
+
+/** Drop a dead device from the subscription list and its lookup key. */
+export async function forgetPushEndpoint(endpoint: string): Promise<void> {
+  await kvDel(endpointKey(endpoint));
+  const rows = await kvListRange(SUBS_LIST, 0, -1);
+  for (const raw of rows) {
+    try {
+      const sub = JSON.parse(raw) as PushSubJSON;
+      if (sub.endpoint === endpoint) await kvListRemove(SUBS_LIST, raw);
+    } catch {
+      /* skip */
+    }
+  }
 }
 
 /** Push to every device that turned notifications on. Drops dead subscriptions. */
@@ -116,7 +130,7 @@ export async function broadcastPush(payload: {
       await sendPushToSubscription(sub, payload);
       sent++;
     } catch (err) {
-      if (isExpiredSubscription(err)) {
+      if (isExpiredPushError(err)) {
         await kvListRemove(SUBS_LIST, raw);
         removed++;
       } else {

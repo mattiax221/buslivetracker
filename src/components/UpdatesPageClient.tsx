@@ -484,18 +484,10 @@ export default function UpdatesPageClient() {
                 <em>iscrive a GTT Live</em>. Su iPhone serve l’app in Home (PWA).
               </p>
               <p className="text-[11px] bg-slate-50 text-slate-600 border border-slate-200 rounded-xl px-3 py-2 leading-relaxed">
-                <strong>Push a app chiusa:</strong> la route c’è già (
-                <code className="font-mono text-[10px]">
-                  /api/cron/smart-alerts
-                </code>
-                ). Su Vercel Hobby il cron può girare{" "}
-                <em>solo 1 volta al giorno</em> (mattina ~7:00) — metti{" "}
-                <code className="font-mono text-[10px]">CRON_SECRET</code> nelle
-                env Vercel. Per avvisi ogni ~5 min (utili per i bus): GitHub →
-                Settings → Secrets con{" "}
-                <code className="font-mono text-[10px]">CRON_URL</code> +{" "}
-                <code className="font-mono text-[10px]">CRON_SECRET</code>, oppure
-                piano Vercel Pro.
+                <strong>Push a app chiusa:</strong> la manda il workflow GitHub
+                «Smart alerts cron», con i secret già impostati. Il file chiede
+                un giro ogni 5 minuti; GitHub ne esegue molti di meno, spesso a
+                ore di distanza. A ogni giro parte solo la fermata, entro 4 minuti.
               </p>
 
               {!pushReady && (
@@ -548,8 +540,9 @@ export default function UpdatesPageClient() {
                     Avvisi sui preferiti
                   </p>
                   <p className="text-[11px] text-slate-500 leading-snug">
-                    Fermata: mezzo entro 4 min. Linea: GPS entro ~450 m da te.
-                    Serve “Attiva notifiche” + preferiti salvati.
+                    Fermata entro 4 minuti, anche a app chiusa. Linea entro
+                    450 m mentre l’app è aperta. Serve «Attiva notifiche» e
+                    un preferito salvato.
                   </p>
                 </div>
                 <button
@@ -589,12 +582,14 @@ export default function UpdatesPageClient() {
                         lines,
                         stops,
                       });
-                      if (!next) {
-                        setPushStatus("Avvisi preferiti disattivati.");
+                      if (!saved.ok) {
+                        setSmartOn(!next);
+                        setSmartAlertsEnabled(!next);
+                        setPushStatus(saved.error || "Salvataggio non riuscito.");
                         return;
                       }
-                      if (!saved.ok) {
-                        setPushStatus(saved.error || "Avvisi non salvati sul server.");
+                      if (!next) {
+                        setPushStatus("Avvisi preferiti disattivati.");
                         return;
                       }
                       if (stops.length === 0 && lines.length === 0) {
@@ -604,7 +599,7 @@ export default function UpdatesPageClient() {
                         return;
                       }
                       setPushStatus(
-                        `Avvisi salvati (${stops.length} fermate, ${lines.length} linee). A app chiusa il controllo è ogni ~5 min se GitHub Actions è attivo.`
+                        `Avvisi salvati (${stops.length} fermate, ${lines.length} linee). A app chiusa arriva la fermata, entro 4 minuti, al passaggio del controllo.`
                       );
                     })();
                   }}
