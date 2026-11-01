@@ -79,6 +79,12 @@ import {
   writeCachedUserLocation,
 } from "../lib/userLocationCache";
 import { pushRecentLine, pushRecentStop } from "../lib/recentHistory";
+import {
+  linePath,
+  parseMapLink,
+  pathForMapSelection,
+  titleForMapPath,
+} from "../lib/mapLinks";
 import SmartAlertsRunner from "./SmartAlertsRunner";
 import {
   applyPollUpdate,
@@ -687,6 +693,8 @@ export default function BusMap() {
 
   const [selectedLines, setSelectedLines] = useState<Set<string>>(new Set());
   const [selectedStop, setSelectedStop] = useState<StopInfo | null>(null);
+  const [mapLinkReady, setMapLinkReady] = useState(false);
+  const pendingLineFit = useRef<string | null>(null);
   const [flyToCoords, setFlyToCoords] = useState<[number, number] | null>(null);
   const [fitRouteTrigger, setFitRouteTrigger] = useState<L.LatLngBoundsExpression | null>(null);
   const lastFittedLineRef = useRef<string | null>(null);
@@ -1381,18 +1389,43 @@ export default function BusMap() {
     [allStops, handleSelectStop]
   );
 
-  // Deep links /?stop= /?line= (notification click, share)
+  // /linea/68, /fermata/3151, and the old ?line= / ?stop= links
   useEffect(() => {
-    if (typeof window === "undefined" || allStops.length === 0) return;
-    const params = new URLSearchParams(window.location.search);
-    const stopCode = params.get("stop");
-    const line = params.get("line");
-    if (!stopCode && !line) return;
-    if (stopCode) handleSelectStopByCode(stopCode);
-    else if (line) handleToggleLine(line);
-    window.history.replaceState({}, "", "/");
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- apply once when stops load
-  }, [allStops.length]);
+    if (mapLinkReady || typeof window === "undefined") return;
+    const link = parseMapLink(window.location.pathname, window.location.search);
+    if ((link.stop || link.line) && allStops.length === 0) return;
+    if (link.stop) {
+      handleSelectStopByCode(link.stop);
+    } else if (link.line) {
+      setSelectedDirection(null);
+      setActiveVehicleRoute(null);
+      pushRecentLine(link.line);
+      setSelectedLines(new Set(expandLineFilter(link.line)));
+      pendingLineFit.current = link.line;
+    }
+    setMapLinkReady(true);
+  }, [allStops.length, handleSelectStopByCode, mapLinkReady]);
+
+  useEffect(() => {
+    if (!mapLinkReady || typeof window === "undefined") return;
+    const path = pathForMapSelection(
+      selectedStop?.code ?? null,
+      selectedLines
+    );
+    if (window.location.pathname === path && !window.location.search) {
+      document.title = titleForMapPath(path);
+      return;
+    }
+    window.history.replaceState(window.history.state, "", path);
+    document.title = titleForMapPath(path);
+  }, [mapLinkReady, selectedLines, selectedStop]);
+
+  useEffect(() => {
+    const line = pendingLineFit.current;
+    if (!line || Object.keys(lineShapes).length === 0) return;
+    pendingLineFit.current = null;
+    handleFitRouteForLine(line);
+  }, [lineShapes, handleFitRouteForLine]);
 
   useEffect(() => {
     if (!geoDenied) return;
@@ -1476,7 +1509,7 @@ export default function BusMap() {
       text: `🚌 Sto seguendo ${lineLabel}${headsignText} a Torino!\nStato: ${speedText}${status}.\nTraccia la posizione in tempo reale:`,
       url:
         typeof window !== "undefined"
-          ? `${window.location.origin}/?line=${v.line}`
+          ? `${window.location.origin}${linePath(v.line)}`
           : "https://github.com/mattiax221/buslivetracker",
     });
     setActiveSheet("share");

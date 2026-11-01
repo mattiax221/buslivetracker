@@ -1,3 +1,4 @@
+import { linePath, stopPath } from "./mapLinks";
 import { getDistanceMeters, normalizeLine } from "./mapUtils";
 import { registerServiceWorker } from "./pwa";
 
@@ -176,7 +177,7 @@ export async function runSmartAlertCheck(input: {
               ? "in arrivo"
               : `tra ${soon.minutesRemaining} min`
           }`,
-          `/?stop=${stop.code}`
+          stopPath(stop.code)
         );
       }
     } catch {
@@ -203,7 +204,7 @@ export async function runSmartAlertCheck(input: {
       await showLocalNotification(
         `Linea ${v.line} vicino`,
         `Un mezzo è a circa ${Math.round(d)} m da te`,
-        `/?line=${encodeURIComponent(v.line)}`
+        linePath(v.line)
       );
       break; // one line alert per cycle
     }

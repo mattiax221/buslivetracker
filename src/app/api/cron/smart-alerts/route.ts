@@ -7,6 +7,7 @@ import {
 } from "../../../../lib/push";
 import { fetchStopArrivals } from "../../../../lib/stopArrivals";
 import { announceLatestChangelog } from "../../../../lib/changelogPush";
+import { stopPath } from "../../../../lib/mapLinks";
 
 type PrefRow = {
   endpoint: string;
@@ -85,7 +86,7 @@ export async function GET(req: NextRequest) {
             hit.minutes <= 0
               ? `Linea ${hit.line}: in arrivo`
               : `Linea ${hit.line}: tra ${hit.minutes} min`,
-          url: `/?stop=${stop.code}`,
+          url: stopPath(stop.code),
         });
         await kvSet(cdKey, String(Date.now()));
         sent++;

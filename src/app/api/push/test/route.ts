@@ -5,6 +5,7 @@ import {
   sendPushToSubscription,
 } from "../../../../lib/push";
 import { kvRateLimit } from "../../../../lib/kv";
+import { stopPath } from "../../../../lib/mapLinks";
 
 export async function POST(req: NextRequest) {
   try {
@@ -57,7 +58,7 @@ export async function POST(req: NextRequest) {
       await sendPushToSubscription(sub, {
         title: `Fermata ${stopName}`,
         body: `Linea ${line}: tra 3 min (prova avviso preferiti)`,
-        url: stopCode ? `/?stop=${encodeURIComponent(stopCode)}` : "/",
+        url: stopCode ? stopPath(stopCode) : "/",
       });
       return NextResponse.json({ ok: true, kind: "smart" });
     }

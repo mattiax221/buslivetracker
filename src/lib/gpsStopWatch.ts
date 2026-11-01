@@ -3,6 +3,7 @@
  * Light: max 2 stops, distance deltas only, no shapes/network JSON.
  */
 
+import { stopPath } from "./mapLinks";
 import { getDistanceMeters, normalizeLine } from "./mapUtils";
 import { registerServiceWorker } from "./pwa";
 
@@ -176,7 +177,7 @@ export async function checkGpsApproachToWatchedStops(
       await notify(
         `Linea ${v.line} in avvicinamento`,
         `Sta arrivando a ${stop.name} (GPS ~${Math.round(dist)} m)`,
-        `/?stop=${encodeURIComponent(stop.code)}`
+        stopPath(stop.code)
       );
       return; // one notification per tick
     }
