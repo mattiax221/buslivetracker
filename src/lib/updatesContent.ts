@@ -13,6 +13,15 @@ export type RoadmapItem = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.25",
+    date: "2026-11-01",
+    title: "Minibus Star, Indcar e-B6",
+    items: [
+      "Le matricole 60E–81E, tra cui la 63, sono l’Indcar e-B6 delle linee Star",
+      "La foto è del 64E, un esemplare della stessa serie",
+    ],
+  },
+  {
     version: "0.3.24",
     date: "2026-11-01",
     title: "Metro, percorsi e velocità più onesti",

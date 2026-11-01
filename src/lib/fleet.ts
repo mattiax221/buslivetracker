@@ -144,6 +144,13 @@ const BMC: FleetPhoto = {
   license: "GTT",
   licenseUrl: "https://www.gtt.to.it/",
 };
+/** User photo of 64E. The series is 60E–81E; 63E is the same minibus. */
+const STAR: FleetPhoto = {
+  src: "/fleet/gtt-64e.jpg",
+  author: "64E",
+  license: "GTT",
+  licenseUrl: "https://www.gtt.to.it/",
+};
 
 const SERIES: Series[] = [
   { from: 2801, to: 2857, name: "Tram serie 2800", detail: "1ª serie, motrice articolata", photo: TRAM_2800 },
@@ -153,6 +160,7 @@ const SERIES: Series[] = [
   { from: 6006, to: 6054, name: "Alstom Cityway", detail: "Tram serie 6000, bidirezionale, piano ribassato", photo: CITYWAY },
   { from: 7000, to: 7039, name: "Tram serie 7000", detail: "Motrice AEG" },
   { from: 8001, to: 8070, name: "Hitachi Rail", detail: "Tram serie 8000, 28 m, monodirezionale", photo: TRAM_8000 },
+  { from: 60, to: 81, name: "Indcar e-B6", detail: "5,9 m, elettrico, linee Star", photo: STAR },
   { from: 85, to: 89, name: "MAN Lion's City", detail: "10 m, diesel Euro 4", photo: MAN },
   { from: 110, to: 115, name: "BMC Neocity", detail: "8,5 m, diesel Euro 6", photo: BMC },
   { from: 320, to: 365, name: "Iveco Crossway", detail: "12 m, extraurbano", photo: CROSSWAY },
