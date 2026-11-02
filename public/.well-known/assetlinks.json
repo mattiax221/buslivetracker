@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "it.gttlive.app.personal",
+      "sha256_cert_fingerprints": [
+        "BA:F7:93:56:BA:3A:9A:C3:F4:F7:B1:E5:F1:C9:3C:97:36:6C:29:D5:BA:5F:DE:E3:F7:AC:EB:98:2C:57:8C:7F"
+      ]
+    }
+  }
+]
