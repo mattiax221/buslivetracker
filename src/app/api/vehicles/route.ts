@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import GtfsRealtimeBindings from "gtfs-realtime-bindings";
+import { takeMatoVehicles, type MatoVehicle } from "../../../lib/matoVehicles";
 import { getMetroVehicles } from "../../../lib/metroEngine";
 
 const VEHICLE_POSITIONS_URL =
@@ -111,6 +112,26 @@ function indexTripUpdates(feed: {
   return index;
 }
 
+function vehicleFromMato(
+  mato: MatoVehicle,
+  trips: Map<string, TripLive>
+): Vehicle {
+  const live = mato.tripId ? trips.get(mato.tripId) : undefined;
+  return {
+    id: mato.id,
+    lat: mato.lat,
+    lon: mato.lon,
+    heading: mato.heading,
+    speed: mato.speed,
+    line: mato.line,
+    tripId: mato.tripId,
+    fleet: mato.fleet,
+    fixAt: mato.fixAt,
+    ...(live?.delaySec != null ? { delaySec: live.delaySec } : {}),
+    ...(live?.wheelchair ? { wheelchair: live.wheelchair } : {}),
+  };
+}
+
 async function loadTripIndex(): Promise<Map<string, TripLive>> {
   const now = Date.now();
   if (tripCache && now - tripCache.at < TRIP_CACHE_MS) return tripCache.index;
@@ -132,26 +153,31 @@ async function loadTripIndex(): Promise<Map<string, TripLive>> {
 export async function GET() {
   try {
     const tripsPromise = loadTripIndex();
-    const res = await fetch(VEHICLE_POSITIONS_URL, {
-      cache: "no-store",
-    });
-
-    if (!res.ok) {
-      return NextResponse.json(
-        { error: "GTT GTFS-RT feed error", status: res.status },
-        { status: 502 }
-      );
+    type Feed = ReturnType<
+      typeof GtfsRealtimeBindings.transit_realtime.FeedMessage.decode
+    >;
+    let feed: Feed | null = null;
+    try {
+      const res = await fetch(VEHICLE_POSITIONS_URL, {
+        cache: "no-store",
+      });
+      if (res.ok) {
+        const buffer = await res.arrayBuffer();
+        feed = GtfsRealtimeBindings.transit_realtime.FeedMessage.decode(
+          new Uint8Array(buffer)
+        );
+      } else {
+        console.error("GTT vehicle feed HTTP", res.status);
+      }
+    } catch (feedErr) {
+      console.error("GTT vehicle feed error:", feedErr);
     }
-
-    const buffer = await res.arrayBuffer();
-    const feed = GtfsRealtimeBindings.transit_realtime.FeedMessage.decode(
-      new Uint8Array(buffer)
-    );
 
     const trips = await tripsPromise;
     const vehicles: Vehicle[] = [];
+    let source: "gtfs-rt" | "mato" = "gtfs-rt";
 
-    for (const entity of feed.entity) {
+    for (const entity of feed?.entity ?? []) {
       const vp = entity.vehicle;
       if (!vp?.position?.latitude || !vp?.position?.longitude) continue;
 
@@ -189,6 +215,15 @@ export async function GET() {
       });
     }
 
+    // GTT sometimes publishes a header and zero positions. The Muoversi
+    // websocket still carries the same GPS, so the map does not go blank.
+    if (vehicles.length === 0) {
+      source = "mato";
+      for (const mato of await takeMatoVehicles()) {
+        vehicles.push(vehicleFromMato(mato, trips));
+      }
+    }
+
     // Inject high-precision VAL 208 Metro M1 real-time train positions
     try {
       const metroTrains = getMetroVehicles();
@@ -200,15 +235,17 @@ export async function GET() {
     return NextResponse.json({
       vehicles,
       count: vehicles.length,
+      source,
       timestamp: new Date().toISOString(),
-      feedTimestamp: feed.header?.timestamp
+      feedTimestamp: feed?.header?.timestamp
         ? new Date(Number(feed.header.timestamp) * 1000).toISOString()
         : null,
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Vehicle fetch error:", err);
+    const message = err instanceof Error ? err.message : "Errore feed";
     return NextResponse.json(
-      { error: "Failed to parse GTFS-RT feed", message: err.message },
+      { error: "Failed to parse GTFS-RT feed", message },
       { status: 500 }
     );
   }

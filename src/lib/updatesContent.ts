@@ -13,6 +13,14 @@ export type RoadmapItem = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.26",
+    date: "2026-11-03",
+    title: "GPS dei pullman anche se GTT tace",
+    items: [
+      "Se il feed posizioni GTT arriva vuoto, i mezzi restano in mappa col GPS di Muoversi a Torino",
+    ],
+  },
+  {
     version: "0.3.25",
     date: "2026-11-01",
     title: "Minibus Star, Indcar e-B6",
