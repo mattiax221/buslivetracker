@@ -45,7 +45,7 @@ export default function MapTopChrome({
           onClick={onOpenAlerts}
           className="relative w-9 h-9 rounded-full bg-black/5 dark-btn border border-black/10 active:scale-90 transition-transform flex items-center justify-center shrink-0"
           title="Avvisi e deviazioni GTT"
-          aria-label="Avvisi GTT"
+          aria-label={`Avvisi GTT${alertsCount > 0 ? ` (${alertsCount})` : ""}`}
         >
           <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
           {alertsCount > 0 && (

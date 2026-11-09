@@ -63,8 +63,16 @@ export default function StopBottomSheet({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastRefreshed, setLastRefreshed] = useState<string>("");
+  const [fetchedAt, setFetchedAt] = useState<number>(Date.now());
+  const [nowTick, setNowTick] = useState<number>(Date.now());
   const [gpsWatchOn, setGpsWatchOn] = useState(false);
   const [watchMsg, setWatchMsg] = useState<string | null>(null);
+
+  // Aggiorna il tick ogni 10s per ricalcolare il countdown dinamico senza refresh di rete
+  useEffect(() => {
+    const timer = setInterval(() => setNowTick(Date.now()), 10000);
+    return () => clearInterval(timer);
+  }, []);
 
   const fetchArrivals = useCallback(async (code: string) => {
     setLoading(true);
@@ -74,6 +82,9 @@ export default function StopBottomSheet({
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setArrivals(data.arrivals || []);
+      const now = Date.now();
+      setFetchedAt(now);
+      setNowTick(now);
       setLastRefreshed(
         new Date().toLocaleTimeString("it-IT", {
           hour: "2-digit",
@@ -277,8 +288,10 @@ export default function StopBottomSheet({
             </div>
           ) : (
             arrivals.map((arr, idx) => {
-              const isUrgent = arr.minutesRemaining <= 3;
-              const isClose = arr.minutesRemaining <= 8;
+              const elapsedMinutes = Math.floor((nowTick - fetchedAt) / 60000);
+              const currentMinutes = Math.max(0, arr.minutesRemaining - elapsedMinutes);
+              const isUrgent = currentMinutes <= 3;
+              const isClose = currentMinutes <= 8;
               const isTram = isTramLine(arr.line);
 
               return (
@@ -322,7 +335,7 @@ export default function StopBottomSheet({
 
                   {/* Right: ETA Badge */}
                   <div className="text-right">
-                    {arr.minutesRemaining === 0 ? (
+                    {currentMinutes === 0 ? (
                       <span className="inline-block px-3 py-1 rounded-full text-xs font-black bg-emerald-500 text-white animate-pulse shadow-sm">
                         IN ARRIVO
                       </span>
@@ -337,7 +350,7 @@ export default function StopBottomSheet({
                               : "text-gray-800"
                           }`}
                         >
-                          {arr.minutesRemaining}
+                          {currentMinutes}
                           <span className="text-xs font-medium ml-0.5">min</span>
                         </span>
                         <span className="text-[10px] text-gray-400 mt-0.5">

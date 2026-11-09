@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import PermissionsPrompt from "@/components/PermissionsPrompt";
 
 const BusMap = dynamic(() => import("@/components/BusMap"), {
@@ -31,7 +32,9 @@ const BusMap = dynamic(() => import("@/components/BusMap"), {
 export default function MapScreen() {
   return (
     <main className="map-shell w-full h-dvh overflow-hidden">
-      <BusMap />
+      <ErrorBoundary>
+        <BusMap />
+      </ErrorBoundary>
       <PermissionsPrompt />
     </main>
   );
