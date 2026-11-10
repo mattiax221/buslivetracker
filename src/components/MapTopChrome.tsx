@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Coffee } from "lucide-react";
 
 interface MapTopChromeProps {
   alertsCount: number;
@@ -41,19 +41,32 @@ export default function MapTopChrome({
           </div>
         </div>
 
-        <button
-          onClick={onOpenAlerts}
-          className="relative w-9 h-9 rounded-full bg-black/5 dark-btn border border-black/10 active:scale-90 transition-transform flex items-center justify-center shrink-0"
-          title="Avvisi e deviazioni GTT"
-          aria-label="Avvisi GTT"
-        >
-          <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
-          {alertsCount > 0 && (
-            <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 bg-amber-500 text-white text-[9px] rounded-full font-black border border-white flex items-center justify-center animate-in zoom-in duration-200">
-              {alertsCount > 99 ? "99+" : alertsCount}
-            </span>
-          )}
-        </button>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <a
+            href="https://ko-fi.com/mattiax"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 h-9 px-2.5 rounded-full bg-amber-50 dark-btn border border-amber-200/80 text-amber-900 active:scale-95 transition-transform"
+            title="Offri un caffè"
+            aria-label="Offri un caffè su Ko-fi"
+          >
+            <Coffee className="w-3.5 h-3.5 text-amber-700" />
+            <span className="text-[11px] font-bold leading-none">Caffè</span>
+          </a>
+          <button
+            onClick={onOpenAlerts}
+            className="relative w-9 h-9 rounded-full bg-black/5 dark-btn border border-black/10 active:scale-90 transition-transform flex items-center justify-center shrink-0"
+            title="Avvisi e deviazioni GTT"
+            aria-label="Avvisi GTT"
+          >
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+            {alertsCount > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 bg-amber-500 text-white text-[9px] rounded-full font-black border border-white flex items-center justify-center animate-in zoom-in duration-200">
+                {alertsCount > 99 ? "99+" : alertsCount}
+              </span>
+            )}
+          </button>
+        </div>
       </div>
     </header>
   );
