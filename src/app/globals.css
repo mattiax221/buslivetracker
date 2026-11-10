@@ -187,6 +187,37 @@ html[data-theme="dark"] .gtt-sheet .bg-white {
   }
 }
 
+@keyframes kofi-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 4px 14px rgba(255, 94, 91, 0.45);
+  }
+  50% {
+    transform: scale(1.04);
+    box-shadow: 0 6px 22px rgba(255, 94, 91, 0.7);
+  }
+}
+
+@keyframes kofi-tip-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.kofi-chip {
+  animation: kofi-pulse 1.8s ease-in-out infinite;
+}
+
+.kofi-tip {
+  animation: kofi-tip-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 .chrome-enter {
   animation: chrome-slide-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
@@ -292,7 +323,9 @@ html[data-theme="dark"] .gtt-sheet .bg-white {
   .chrome-enter,
   .dock-enter,
   .live-dot--on,
-  .disruption-drop {
+  .disruption-drop,
+  .kofi-chip,
+  .kofi-tip {
     animation: none !important;
   }
 }
