@@ -1,6 +1,6 @@
 "use client";
 
-import { X, Shield, MapPinned, Database, ExternalLink } from "lucide-react";
+import { X, Shield, MapPinned, Database, ExternalLink, Coffee } from "lucide-react";
 
 interface AboutPrivacySheetProps {
   isOpen: boolean;
@@ -92,15 +92,29 @@ export default function AboutPrivacySheet({
           </p>
         </section>
 
-        <a
-          href="https://github.com/mattiax221/buslivetracker"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center justify-between w-full p-3 rounded-2xl bg-slate-900 text-white text-xs font-bold active:scale-[0.99] transition-transform"
-        >
-          <span>Codice su GitHub</span>
-          <ExternalLink className="w-3.5 h-3.5" />
-        </a>
+        <div className="space-y-2">
+          <a
+            href="https://github.com/mattiax221/buslivetracker"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-between w-full p-3 rounded-2xl bg-slate-900 text-white text-xs font-bold active:scale-[0.99] transition-transform"
+          >
+            <span>Codice su GitHub</span>
+            <ExternalLink className="w-3.5 h-3.5" />
+          </a>
+          <a
+            href="https://ko-fi.com/mattiax"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-between w-full p-3 rounded-2xl border border-slate-200 bg-slate-50 text-slate-700 text-xs font-semibold active:scale-[0.99] transition-transform"
+          >
+            <span className="inline-flex items-center gap-2">
+              <Coffee className="w-3.5 h-3.5 text-amber-700" />
+              Offri un caffè
+            </span>
+            <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+          </a>
+        </div>
       </div>
     </div>
   );
