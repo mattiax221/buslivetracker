@@ -3,11 +3,11 @@
 import { useEffect, useState } from "react";
 import { AlertTriangle, Coffee, X } from "lucide-react";
 
-const KOFI_URL = "https://ko-fi.com/mattiax";
+export const KOFI_URL = "https://ko-fi.com/mattiax";
 const TIP_STORAGE_KEY = "gtt_kofi_tip_seen_at";
-/** Show the tip again after this many days. */
+/** Soft tip bubble again after this many days (banner chip stays always on). */
 const TIP_COOLDOWN_DAYS = 2;
-const TIP_DELAY_MS = 4500;
+const TIP_DELAY_MS = 3500;
 
 interface MapTopChromeProps {
   alertsCount: number;
@@ -81,56 +81,61 @@ export default function MapTopChrome({
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 shrink-0">
-          <a
-            href={KOFI_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={dismissTip}
-            className="kofi-chip inline-flex items-center gap-1.5 h-9 pl-2.5 pr-3 rounded-full bg-[#FF5E5B] text-white border border-[#ff7a78] shadow-[0_4px_14px_rgba(255,94,91,0.45)] active:scale-95 transition-transform"
-            title="Offri un caffè"
-            aria-label="Offri un caffè su Ko-fi"
-          >
-            <Coffee className="w-3.5 h-3.5" />
-            <span className="text-[11px] font-black leading-none tracking-tight">
-              Offri un caffè
+        <button
+          onClick={onOpenAlerts}
+          className="relative w-9 h-9 rounded-full bg-black/5 dark-btn border border-black/10 active:scale-90 transition-transform flex items-center justify-center shrink-0"
+          title="Avvisi e deviazioni GTT"
+          aria-label={`Avvisi GTT${alertsCount > 0 ? ` (${alertsCount})` : ""}`}
+        >
+          <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+          {alertsCount > 0 && (
+            <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 bg-amber-500 text-white text-[9px] rounded-full font-black border border-white flex items-center justify-center animate-in zoom-in duration-200">
+              {alertsCount > 99 ? "99+" : alertsCount}
             </span>
-          </a>
-          <button
-            onClick={onOpenAlerts}
-            className="relative w-9 h-9 rounded-full bg-black/5 dark-btn border border-black/10 active:scale-90 transition-transform flex items-center justify-center shrink-0"
-            title="Avvisi e deviazioni GTT"
-            aria-label={`Avvisi GTT${alertsCount > 0 ? ` (${alertsCount})` : ""}`}
-          >
-            <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
-            {alertsCount > 0 && (
-              <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 bg-amber-500 text-white text-[9px] rounded-full font-black border border-white flex items-center justify-center animate-in zoom-in duration-200">
-                {alertsCount > 99 ? "99+" : alertsCount}
-              </span>
-            )}
-          </button>
-        </div>
+          )}
+        </button>
+      </div>
+
+      {/* Always-visible Ko-fi strip on the main map (not only Altro / Info). */}
+      <div className="pointer-events-auto mx-3 mt-2">
+        <a
+          href={KOFI_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={dismissTip}
+          className="kofi-chip flex items-center justify-center gap-2 w-full min-h-11 px-3 py-2.5 rounded-2xl bg-[#FF5E5B] text-white border border-[#ff7a78] shadow-[0_6px_18px_rgba(255,94,91,0.45)] active:scale-[0.99] transition-transform"
+          title="Offri un caffè su Ko-fi"
+          aria-label="Offri un caffè su Ko-fi"
+        >
+          <Coffee className="w-4 h-4 shrink-0" />
+          <span className="text-[13px] font-black leading-none tracking-tight">
+            Offri un caffè
+          </span>
+          <span className="hidden xs:inline text-[11px] font-semibold text-white/90 leading-none">
+            · sostieni GTT Live
+          </span>
+        </a>
       </div>
 
       {tipOpen && (
         <div className="pointer-events-auto mx-3 mt-2 flex justify-end">
           <div
             role="status"
-            className="kofi-tip relative max-w-[min(92vw,280px)] rounded-2xl bg-[#FF5E5B] text-white px-3.5 py-3 shadow-[0_12px_32px_rgba(255,94,91,0.4)] border border-white/25"
+            className="kofi-tip relative max-w-[min(92vw,300px)] rounded-2xl bg-white text-slate-900 px-3.5 py-3 shadow-[0_12px_32px_rgba(15,23,42,0.18)] border border-rose-200"
           >
             <div
-              className="absolute -top-1.5 right-10 w-3 h-3 rotate-45 bg-[#FF5E5B] border-l border-t border-white/25"
+              className="absolute -top-1.5 right-8 w-3 h-3 rotate-45 bg-white border-l border-t border-rose-200"
               aria-hidden
             />
             <div className="flex items-start gap-2.5">
-              <div className="mt-0.5 w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+              <div className="mt-0.5 w-8 h-8 rounded-xl bg-[#FF5E5B]/15 text-[#FF5E5B] flex items-center justify-center shrink-0">
                 <Coffee className="w-4 h-4" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-[12px] font-black leading-snug">
+                <p className="text-[12px] font-black leading-snug text-slate-900">
                   Ti è utile GTT Live?
                 </p>
-                <p className="text-[11px] font-medium leading-snug text-white/90 mt-0.5">
+                <p className="text-[11px] font-medium leading-snug text-slate-600 mt-0.5">
                   Un caffè aiuta a tenerla online, senza pubblicità.
                 </p>
                 <a
@@ -138,7 +143,7 @@ export default function MapTopChrome({
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={dismissTip}
-                  className="mt-2 inline-flex items-center justify-center rounded-xl bg-white text-[#c2410c] text-[11px] font-black px-3 py-1.5 active:scale-95"
+                  className="mt-2 inline-flex items-center justify-center rounded-xl bg-[#FF5E5B] text-white text-[11px] font-black px-3 py-1.5 active:scale-95"
                 >
                   Apri Ko-fi
                 </a>
@@ -146,7 +151,7 @@ export default function MapTopChrome({
               <button
                 type="button"
                 onClick={dismissTip}
-                className="shrink-0 p-1 rounded-full hover:bg-white/15 active:scale-90"
+                className="shrink-0 p-1 rounded-full hover:bg-slate-100 active:scale-90 text-slate-500"
                 aria-label="Chiudi"
               >
                 <X className="w-4 h-4" />
