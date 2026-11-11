@@ -158,7 +158,23 @@ const METRO_FOCUS_FALLBACK: Record<string, [number, number]> = {
   METRO_BENGASI: [45.0328, 7.6665],
 };
 
+const ICON_CACHE_MAX = 512;
 const vehicleIconCache = new Map<string, L.DivIcon>();
+
+function pruneIconCache() {
+  if (vehicleIconCache.size <= ICON_CACHE_MAX) return;
+  const overflow = vehicleIconCache.size - ICON_CACHE_MAX;
+  const iter = vehicleIconCache.keys();
+  for (let i = 0; i < overflow; i++) {
+    const key = iter.next().value;
+    if (key != null) vehicleIconCache.delete(key);
+  }
+}
+
+/** Subtle haptic tap on marker interaction (no-op on desktop). */
+function hapticTap() {
+  try { navigator?.vibrate?.(8); } catch { /* ignore */ }
+}
 
 function getVehicleIcon(
   line: string,
@@ -212,6 +228,7 @@ function getVehicleIcon(
       iconAnchor: [0, 0],
     });
     vehicleIconCache.set(key, icon);
+    pruneIconCache();
   }
   return icon;
 }
@@ -737,6 +754,7 @@ export default function BusMap() {
   const [mapBounds, setMapBounds] = useState<L.LatLngBounds | null>(null);
   const [mapZoom, setMapZoom] = useState(14);
   const [showEstimated, setShowEstimated] = useState(false);
+  const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   const mapBoot = useMemo(() => {
@@ -756,6 +774,15 @@ export default function BusMap() {
     }
     return counts;
   }, [vehicles]);
+
+  const savedLineSet = useMemo(() => {
+    const set = new Set<string>();
+    for (const l of savedLines) {
+      set.add(normalizeLine(l));
+      for (const id of expandLineFilter(normalizeLine(l))) set.add(id);
+    }
+    return set;
+  }, [savedLines]);
 
   const stopCoordsByCode = useMemo(() => {
     const map: Record<string, { lat: number; lon: number }> = {};
@@ -1188,6 +1215,11 @@ export default function BusMap() {
       list = list.filter((v) => padded.contains([v.lat, v.lon]));
     }
 
+    // Filter to favorites only
+    if (showOnlyFavorites && savedLineSet.size > 0) {
+      list = list.filter((v) => savedLineSet.has(normalizeLine(v.line)));
+    }
+
     return list;
   }, [
     allVehicles,
@@ -1196,6 +1228,8 @@ export default function BusMap() {
     mapBounds,
     filteredVehicles,
     showEstimated,
+    showOnlyFavorites,
+    savedLineSet,
   ]);
 
   const disruptionIndex = useMemo(() => indexDisruptions(serviceAlerts), [serviceAlerts]);
@@ -1268,6 +1302,7 @@ export default function BusMap() {
 
   const handleSelectVehicle = useCallback(
     (v: Vehicle) => {
+      hapticTap();
       const shapes = lineShapes[v.line] || lineShapes[normalizeLine(v.line)] || [];
       setActiveVehicleRoute({
         vehicleId: v.id,
@@ -1359,6 +1394,7 @@ export default function BusMap() {
   }, [selectedLines, activeVehicleRoute, lineShapes, selectedDirection]);
 
   const handleSelectStop = useCallback((stop: StopInfo) => {
+    hapticTap();
     pushRecentStop({ code: stop.code, name: stop.name });
     setSelectedStop(stop);
     setFlyToCoords([stop.lat, stop.lon]);
@@ -1838,6 +1874,8 @@ export default function BusMap() {
         favoritesCount={savedLines.length + savedStops.length}
         showEstimated={showEstimated}
         onToggleEstimated={() => setShowEstimated((v) => !v)}
+        showOnlyFavorites={showOnlyFavorites}
+        onToggleOnlyFavorites={() => setShowOnlyFavorites((v) => !v)}
         onLocate={handleLocate}
         onRefreshVehicles={() => {
           void fetchVehicles({ manual: true });

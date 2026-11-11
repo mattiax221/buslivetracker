@@ -17,7 +17,7 @@ export async function fetchStopArrivals(stopCode: string): Promise<StopArrival[]
   if (!/^\d+$/.test(stopCode)) return [];
 
   const res = await fetch(
-    `http://gpa.madbob.org/query.php?stop=${encodeURIComponent(stopCode)}`,
+    `https://gpa.madbob.org/query.php?stop=${encodeURIComponent(stopCode)}`,
     { cache: "no-store", headers: { Accept: "application/json" } }
   );
   if (!res.ok) return [];

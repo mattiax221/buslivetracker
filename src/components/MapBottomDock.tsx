@@ -31,7 +31,10 @@ interface MapBottomDockProps {
   favoritesCount: number;
   showEstimated: boolean;
   onToggleEstimated: () => void;
+  showOnlyFavorites: boolean;
+  onToggleOnlyFavorites: () => void;
   onLocate: () => void;
+  followingUser?: boolean;
   onRefreshVehicles: () => void;
   refreshing?: boolean;
   onOpenFavorites: () => void;
@@ -49,7 +52,10 @@ export default function MapBottomDock({
   favoritesCount,
   showEstimated,
   onToggleEstimated,
+  showOnlyFavorites,
+  onToggleOnlyFavorites,
   onLocate,
+  followingUser = false,
   onRefreshVehicles,
   refreshing = false,
   onOpenFavorites,
@@ -169,6 +175,31 @@ export default function MapBottomDock({
                 />
               </button>
             </div>
+            <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="font-bold text-slate-800 text-[11px]">
+                  Solo linee preferite
+                </div>
+                <div className="text-[10px] text-slate-400 leading-snug">
+                  Mostra solo i mezzi delle linee salvate.
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={onToggleOnlyFavorites}
+                className={`w-9 h-5 flex items-center rounded-full p-0.5 transition-colors shrink-0 ${
+                  showOnlyFavorites ? "bg-[#0B5FFF]" : "bg-slate-300"
+                }`}
+                aria-pressed={showOnlyFavorites}
+                aria-label="Mostra solo linee preferite"
+              >
+                <div
+                  className={`bg-white w-4 h-4 rounded-full shadow-md transition-transform ${
+                    showOnlyFavorites ? "translate-x-4" : "translate-x-0"
+                  }`}
+                />
+              </button>
+            </div>
           </div>
         )}
 
@@ -264,10 +295,16 @@ export default function MapBottomDock({
         <nav className="gtt-chrome backdrop-blur-xl rounded-2xl border shadow-[0_10px_40px_rgba(15,23,42,0.14)] flex items-stretch overflow-hidden">
           <button
             onClick={onLocate}
-            className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 active:scale-[0.97] active:bg-black/5 transition-transform"
+            className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 active:scale-[0.97] transition-all ${
+              followingUser
+                ? "bg-[#0B5FFF]/15 text-[#0B5FFF] font-black"
+                : "active:bg-black/5"
+            }`}
+            aria-pressed={followingUser}
+            title={followingUser ? "Modalità seguimi attiva (tocca per disattivare)" : "Centra su di me"}
           >
-            <LocateFixed className="w-5 h-5 text-[#0B5FFF]" />
-            <span className="text-[10px] font-bold">Vicino</span>
+            <LocateFixed className={`w-5 h-5 ${followingUser ? "text-[#0B5FFF] animate-pulse" : "text-[#0B5FFF]"}`} />
+            <span className="text-[10px] font-bold">{followingUser ? "Seguimi" : "Vicino"}</span>
           </button>
           <div className="w-px bg-black/10 my-2" />
           <button
